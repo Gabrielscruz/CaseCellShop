@@ -43,7 +43,7 @@ describe('GetProductsUseCase (Cache-Aside & Prevenção de Cache Stampede)', () 
     const cachedData = {
       items: [
         {
-          id: 'prod-001',
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
           name: 'Capa Silicone iPhone 15',
           description: 'Top',
           price: 89.9,
@@ -71,7 +71,7 @@ describe('GetProductsUseCase (Cache-Aside & Prevenção de Cache Stampede)', () 
     const dbData = {
       items: [
         {
-          id: 'prod-001',
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
           name: 'Capa Silicone iPhone 15',
           description: 'Top',
           price: 89.9,

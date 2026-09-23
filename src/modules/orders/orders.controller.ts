@@ -54,7 +54,7 @@ export class OrdersController {
     schema: {
       type: 'object',
       properties: {
-        orderId: { type: 'string', example: 'ord-a4f6d3a1-2b47-4f51-8723-9f82d1c68123' },
+        orderId: { type: 'string', example: 'a4f6d3a1-2b47-4f51-8723-9f82d1c68123' },
         status: { type: 'string', example: 'ACCEPTED' },
       },
     },
@@ -84,8 +84,8 @@ export class OrdersController {
   })
   @ApiParam({
     name: 'orderId',
-    description: 'ID único do pedido retornado pelo checkout',
-    example: 'ord-a4f6d3a1-2b47-4f51-8723-9f82d1c68123',
+    description: 'ID único do pedido retornado pelo checkout (UUID)',
+    example: 'a4f6d3a1-2b47-4f51-8723-9f82d1c68123',
   })
   @ApiResponse({
     status: 200,

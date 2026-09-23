@@ -15,7 +15,7 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
     stock = 10;
 
     const mockProduct: Product = {
-      id: 'prod-001',
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       name: 'Capa Teste',
       description: 'Desc',
       price: 50,
@@ -83,7 +83,7 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
 
   it('deve retornar a mesma resposta salva e não descontar estoque novamente quando um retry é executado com a mesma Idempotency-Key', async () => {
     const key = 'user-retry-key-uuid';
-    const dto = { items: [{ productId: 'prod-001', quantity: 1 }] };
+    const dto = { items: [{ productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 }] };
 
     // Primeira chamada: aceita
     const firstCall = await useCase.execute(dto, key, 'corr-1');
@@ -102,7 +102,7 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
     idempotencyStore.set(key, 'PROCESSING');
 
     await expect(
-      useCase.execute({ items: [{ productId: 'prod-001', quantity: 1 }] }, key, 'corr-3'),
+      useCase.execute({ items: [{ productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 }] }, key, 'corr-3'),
     ).rejects.toThrow(ConflictException);
 
     expect(stock).toBe(10); // Nenhum estoque baixado

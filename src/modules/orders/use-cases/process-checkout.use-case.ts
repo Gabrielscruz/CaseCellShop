@@ -111,7 +111,7 @@ export class ProcessCheckoutUseCase {
     await this.cache.del('catalog:page:1:limit:10');
 
     // 4. Criação do Pedido no Banco de Dados
-    const orderId = `ord-${uuidv4()}`;
+    const orderId = uuidv4();
     await this.orderRepo.create({
       id: orderId,
       totalAmount,

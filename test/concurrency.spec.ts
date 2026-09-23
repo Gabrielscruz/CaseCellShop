@@ -16,7 +16,7 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
     currentStock = 10; // 10 unidades no estoque inicial
 
     const mockProduct: Product = {
-      id: 'prod-case-001',
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       name: 'Capinha Silicone iPhone 15 Pro',
       description: 'Capinha top',
       price: 89.9,
@@ -26,7 +26,7 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
     };
 
     // Simula o comportamento do Atomic Conditional Update do PostgreSQL:
-    // UPDATE stock SET qty = qty - 1 WHERE id = 'prod-case-001' AND qty >= 1
+    // UPDATE stock SET qty = qty - 1 WHERE id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' AND qty >= 1
     // Nenhuma race condition acontece porque a verificação e o decremento são indivisíveis
     const mockProductRepo: IProductRepository = {
       findPaginated: jest.fn(),
@@ -106,7 +106,7 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
     for (let i = 0; i < totalRequests; i++) {
       const promise = useCase
         .execute(
-          { items: [{ productId: 'prod-case-001', quantity: 1 }] },
+          { items: [{ productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 }] },
           `idempotency-key-client-${i}`,
           `correlation-id-${i}`,
         )

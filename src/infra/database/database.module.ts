@@ -1,34 +1,23 @@
-import { Global, Module, OnModuleDestroy } from '@nestjs/common';
-import { Pool } from 'pg';
-import { PG_POOL, createPgPool } from './postgres.pool';
-import { PgProductRepository } from './pg-product.repository';
-import { PgOrderRepository } from './pg-order.repository';
+import { Global, Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+import { PrismaProductRepository } from './prisma-product.repository';
+import { PrismaOrderRepository } from './prisma-order.repository';
 import { PRODUCT_REPOSITORY } from '../../core/products/product.repository.interface';
 import { ORDER_REPOSITORY } from '../../core/orders/order.repository.interface';
 
 @Global()
 @Module({
   providers: [
-    {
-      provide: PG_POOL,
-      useFactory: createPgPool,
-    },
+    PrismaService,
     {
       provide: PRODUCT_REPOSITORY,
-      useClass: PgProductRepository,
+      useClass: PrismaProductRepository,
     },
     {
       provide: ORDER_REPOSITORY,
-      useClass: PgOrderRepository,
+      useClass: PrismaOrderRepository,
     },
   ],
-  exports: [PG_POOL, PRODUCT_REPOSITORY, ORDER_REPOSITORY],
+  exports: [PrismaService, PRODUCT_REPOSITORY, ORDER_REPOSITORY],
 })
-export class DatabaseModule implements OnModuleDestroy {
-  constructor() {}
-
-  async onModuleDestroy() {
-    // Graceful shutdown do pool
-  }
-}
-
+export class DatabaseModule {}

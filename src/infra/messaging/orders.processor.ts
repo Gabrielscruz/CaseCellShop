@@ -119,8 +119,8 @@ export class OrdersProcessor implements OnModuleInit, OnModuleDestroy {
     const simulatedLatencyMs = Math.floor(Math.random() * 200) + 100;
     await new Promise((resolve) => setTimeout(resolve, simulatedLatencyMs));
 
-    // Se o pedido tiver um ID especial de teste 'fail-erp', forçamos erro para testar DLQ e SAGA compensatória
-    if (orderId.includes('fail-erp')) {
+    // Se a requisição contiver 'fail-erp', forçamos erro para testar DLQ e SAGA compensatória
+    if (correlationId.includes('fail-erp') || orderId.includes('fail-erp')) {
       this.metrics.erpErrorsTotal.inc({ endpoint: '/erp/billing', status_code: '504' });
       throw new Error('ERP Gateway Timeout (HTTP 504) - Falha persistente na emissão da NF-e');
     }

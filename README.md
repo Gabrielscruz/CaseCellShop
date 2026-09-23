@@ -13,7 +13,8 @@ Este projeto implementa uma arquitetura resiliente, de alta performance e desaco
 
 A aplicação segue a divisão em camadas isoladas por **Inversão de Dependência (DIP)**:
 
-```text
+prisma/
+└── schema.prisma                 # 📐 Modelos e Mapeamento de Dados Prisma com UUID
 src/
 ├── core/                         # 🏛️ Domínio Puro (Entidades e Interfaces/Ports)
 │   ├── products/
@@ -24,10 +25,10 @@ src/
 │       └── order.repository.interface.ts
 │
 ├── infra/                        # ⚙️ Infraestrutura Externa e Adapters
-│   ├── database/                 # PostgreSQL (Pool nativo e queries puras)
-│   │   ├── postgres.pool.ts
-│   │   ├── pg-product.repository.ts
-│   │   └── pg-order.repository.ts
+│   ├── database/                 # Prisma ORM (100% Prisma Client API pura: $transaction, decrement, increment)
+│   │   ├── prisma.service.ts
+│   │   ├── prisma-product.repository.ts
+│   │   └── prisma-order.repository.ts
 │   ├── cache/                    # Redis (Cache-Aside + Lock contra Cache Stampede)
 │   │   ├── redis.client.ts
 │   │   └── redis-cache.service.ts
@@ -61,9 +62,10 @@ docker compose up -d
 ```
 > O PostgreSQL 16 executará automaticamente o script `init.sql`, criando as tabelas com constraints de integridade (`CHECK (qty >= 0)`) e inserindo as capinhas de celular no catálogo.
 
-### Passo 2: Instalar dependências e compilar
+### Passo 2: Instalar dependências, gerar Prisma Client e compilar
 ```bash
 npm install
+npx prisma generate
 npm run build
 ```
 
@@ -108,7 +110,7 @@ curl -i -X POST "http://localhost:3000/checkout" \
   -d '{
     "items": [
       {
-        "productId": "prod-case-001",
+        "productId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
         "quantity": 1
       }
     ]
@@ -117,7 +119,7 @@ curl -i -X POST "http://localhost:3000/checkout" \
 **Resposta (HTTP 202 Accepted):**
 ```json
 {
-  "orderId": "ord-7f39b61d-61a0-4355-a0bc-9e58ccff5dfb",
+  "orderId": "7f39b61d-61a0-4355-a0bc-9e58ccff5dfb",
   "status": "ACCEPTED"
 }
 ```
@@ -126,7 +128,7 @@ curl -i -X POST "http://localhost:3000/checkout" \
 Consulta o ciclo de vida do pedido: `ACCEPTED` ➔ `PROCESSING` ➔ `BILLED` (ou `FAILED`).
 
 ```bash
-curl -i -X GET "http://localhost:3000/orders/ord-7f39b61d-61a0-4355-a0bc-9e58ccff5dfb/status"
+curl -i -X GET "http://localhost:3000/orders/7f39b61d-61a0-4355-a0bc-9e58ccff5dfb/status"
 ```
 
 ---
