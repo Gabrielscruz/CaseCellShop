@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Iniciando seed do banco de dados via Prisma...');
+  console.log('🌱 Iniciando seed de 10.000 produtos via Prisma...');
 
-  const productsData = [
+  // 1. Produtos base determinísticos para testes unitários e de concorrência
+  const baseProducts = [
     {
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       name: 'Capinha Silicone iPhone 15 Pro - Midnight Black',
@@ -43,7 +45,7 @@ async function main() {
     },
   ];
 
-  for (const item of productsData) {
+  for (const item of baseProducts) {
     await prisma.product.upsert({
       where: { id: item.id },
       update: {
@@ -56,19 +58,12 @@ async function main() {
         name: item.name,
         description: item.description,
         price: item.price,
-        stock: {
-          create: {
-            qty: item.stockQty,
-          },
-        },
       },
     });
 
     await prisma.stock.upsert({
       where: { productId: item.id },
-      update: {
-        qty: item.stockQty,
-      },
+      update: { qty: item.stockQty },
       create: {
         productId: item.id,
         qty: item.stockQty,
@@ -76,7 +71,84 @@ async function main() {
     });
   }
 
-  console.log('✅ Seed do Prisma concluído com sucesso!');
+  // 2. Geração de 9.995 produtos adicionais variados para totalizar 10.000 produtos
+  const phones = [
+    'iPhone 13', 'iPhone 13 Pro', 'iPhone 14', 'iPhone 14 Pro Max',
+    'iPhone 15', 'iPhone 15 Pro', 'iPhone 15 Pro Max', 'iPhone 16', 'iPhone 16 Pro',
+    'Galaxy S22', 'Galaxy S23', 'Galaxy S23 Ultra', 'Galaxy S24', 'Galaxy S24 Ultra',
+    'Galaxy Z Flip 5', 'Galaxy Z Fold 5', 'Galaxy A54', 'Galaxy A55',
+    'Pixel 7', 'Pixel 8', 'Pixel 8 Pro', 'Pixel 9 Pro',
+    'Xiaomi 13', 'Xiaomi 13 Pro', 'Xiaomi 14', 'Redmi Note 13 Pro',
+    'Motorola Edge 40', 'Moto G84', 'OnePlus 12',
+  ];
+
+  const caseTypes = [
+    'Silicone Velvet Touch', 'MagSafe Transparente HD', 'Anti-Impacto Bumper Pro',
+    'Couro Legítimo Premium', 'Fibra de Carbono Aero', 'Armadura Metálica Robusta',
+    'Ultra Slim Fosca', 'Wallet com Porta-Cartões', 'Glitter Sparkle Deluxe',
+  ];
+
+  const colors = [
+    'Midnight Black', 'Deep Purple', 'Sierra Blue', 'Alpine Green',
+    'Titanium Gray', 'Space Gray', 'Rose Gold', 'Crimson Red',
+    'Emerald Green', 'Chalk White', 'Sunset Orange', 'Navy Blue',
+  ];
+
+  const TOTAL_TARGET = 10000;
+  const currentCount = await prisma.product.count();
+  const toGenerate = TOTAL_TARGET - currentCount;
+
+  if (toGenerate <= 0) {
+    console.log(`ℹ️ O banco de dados já possui ${currentCount} produtos cadastrados.`);
+    return;
+  }
+
+  console.log(`📦 Gerando ${toGenerate} novos produtos para atingir o total de ${TOTAL_TARGET}...`);
+
+  const BATCH_SIZE = 2000;
+  let productsBatch: { id: string; name: string; description: string; price: number }[] = [];
+  let stockBatch: { productId: string; qty: number }[] = [];
+
+  for (let i = 1; i <= toGenerate; i++) {
+    const id = uuidv4();
+    const phone = phones[i % phones.length];
+    const type = caseTypes[(i * 3) % caseTypes.length];
+    const color = colors[(i * 7) % colors.length];
+
+    const price = parseFloat((39.9 + (i % 25) * 5 + 0.9).toFixed(2));
+    const qty = 5 + (i % 95); // estoque entre 5 e 100 unidades
+
+    productsBatch.push({
+      id,
+      name: `Capinha ${type} ${phone} - ${color}`,
+      description: `Proteção premium para ${phone} com design exclusivo ${type} na cor ${color}.`,
+      price,
+    });
+
+    stockBatch.push({
+      productId: id,
+      qty,
+    });
+
+    if (productsBatch.length === BATCH_SIZE || i === toGenerate) {
+      await prisma.product.createMany({
+        data: productsBatch,
+        skipDuplicates: true,
+      });
+
+      await prisma.stock.createMany({
+        data: stockBatch,
+        skipDuplicates: true,
+      });
+
+      console.log(`  ⏳ Inseridos ${i} de ${toGenerate} produtos...`);
+      productsBatch = [];
+      stockBatch = [];
+    }
+  }
+
+  const finalCount = await prisma.product.count();
+  console.log(`✅ Seed concluído com sucesso! Total no catálogo: ${finalCount} produtos.`);
 }
 
 main()
@@ -87,4 +159,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
