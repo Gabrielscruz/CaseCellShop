@@ -51,4 +51,3 @@ describe('CursorUtil', () => {
     expect(() => decodeCursor(invalidDatePayload)).toThrow(BadRequestException)
   })
 })
-

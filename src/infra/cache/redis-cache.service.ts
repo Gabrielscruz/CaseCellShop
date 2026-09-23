@@ -65,10 +65,6 @@ export class RedisCacheService {
     return lockKey.startsWith('lock:') ? lockKey : `lock:${lockKey}`
   }
 
-  /**
-   * Lock Distribuído Atômico no Redis (Prevenção de Cache Stampede):
-   * Usa SET com NX (só cria se não existir) e PX (expiração em milissegundos).
-   */
   async acquireLock(lockKey: string, ttlMs: number = 2000): Promise<boolean> {
     try {
       const key = this.formatLockKey(lockKey)
@@ -91,14 +87,6 @@ export class RedisCacheService {
     }
   }
 
-  /**
-   * Padrão Cache-Aside Resiliente com Anti-Stampede Lock e Fallback Gracioso (Stale):
-   * 1. Consulta o cache primário (HIT)
-   * 2. Previne Stampede usando Lock Distribuído
-   * 3. Executa o loader se for MISS
-   * 4. Salva no cache primário e na chave de fallback de longa retenção
-   * 5. Em caso de falha no loader (queda do banco/timeout), recupera do fallback e retorna status STALE
-   */
   async getOrSetWithFallback<T>({
     key,
     ttlSeconds,
@@ -108,21 +96,14 @@ export class RedisCacheService {
   }: ResilientCacheOptions<T>): Promise<ResilientCacheResult<T>> {
     const fallbackKey = `fallback:${key}`
 
-    // 1. Consulta ao cache quente primário
     const cachedData = await this.get<T>(key)
     if (cachedData) {
-      this.logger.log(`Catálogo recuperado do cache Redis (HIT)`, {
-        cache_key: key,
-        cache_status: 'HIT',
-      })
       return { data: cachedData, cacheStatus: 'HIT' }
     }
 
-    // 2. Prevenção de Cache Stampede via Lock Distribuído
     const acquiredLock = await this.acquireLock(key, lockTtlMs)
 
     if (!acquiredLock) {
-      // Outro processo já está buscando; aguarda 80ms para consumir o cache aquecido
       await new Promise((resolve) => setTimeout(resolve, 80))
       const retryCachedData = await this.get<T>(key)
       if (retryCachedData) {
@@ -131,15 +112,8 @@ export class RedisCacheService {
     }
 
     try {
-      this.logger.log(`Consultando catálogo no banco de dados (MISS)`, {
-        cache_key: key,
-        cache_status: 'MISS',
-      })
-
-      // 3. Execução da busca no banco de dados
       const data = await loader()
 
-      // 4. Atualiza cache quente e cópia de fallback resiliente
       await this.set(key, data, ttlSeconds)
       if (fallbackTtlSeconds > 0) {
         await this.set(fallbackKey, data, fallbackTtlSeconds)
@@ -148,29 +122,17 @@ export class RedisCacheService {
       return { data, cacheStatus: 'MISS' }
     } catch (error) {
       this.logger.warn(
-        `Falha na execução do loader para "${key}": ${error.message}. Tentando acionar Fallback Gracioso...`,
-        {
-          cache_key: key,
-          error: error.message,
-        },
+        `Falha ao executar loader para "${key}": ${error.message}. Acionando fallback gracioso...`,
+        { cache_key: key, error: error.message },
       )
 
-      // 5. Fallback Gracioso: entrega a última versão conhecida preservada no Redis
       if (fallbackTtlSeconds > 0) {
         const staleData = await this.get<T>(fallbackKey)
         if (staleData) {
-          this.logger.warn(
-            `Fallback Gracioso ativado com sucesso: vitrine servida a partir de dados cacheados preservados (STALE).`,
-            {
-              cache_key: fallbackKey,
-              cache_status: 'STALE',
-            },
-          )
           return { data: staleData, cacheStatus: 'STALE' }
         }
       }
 
-      // Se nem o fallback existir, propaga a falha original
       throw error
     } finally {
       if (acquiredLock) {
@@ -179,10 +141,6 @@ export class RedisCacheService {
     }
   }
 
-  /**
-   * Idempotência no Redis:
-   * Grava atomicamente com NX para evitar processamento simultâneo (duplo clique).
-   */
   async acquireIdempotencyLock(
     key: string,
     ttlSeconds: number = 120,
