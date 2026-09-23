@@ -10,12 +10,13 @@ import { StructuredLoggerService } from '../../infra/observability/logger.servic
 
 export interface FindAllProductsResult {
   data: CursorPaginatedProducts
-  cacheStatus: 'HIT' | 'MISS'
+  cacheStatus: 'HIT' | 'MISS' | 'STALE'
 }
 
 @Injectable()
 export class ProductsService {
   private readonly CACHE_TTL_SECONDS = 30
+  private readonly FALLBACK_TTL_SECONDS = 86400 // 24 horas para tolerância a falhas
 
   constructor(
     @Inject(PRODUCT_REPOSITORY)
@@ -25,7 +26,7 @@ export class ProductsService {
   ) {}
 
   /**
-   * Busca produtos com paginação por cursor (createdAt) e Cache-Aside (Redis)
+   * Busca produtos com paginação por cursor (createdAt), Cache-Aside e Fallback Gracioso
    * @param limit Quantidade de itens por página (default 1000)
    * @param cursor Cursor opaco em Base64 para a próxima página
    */
@@ -35,8 +36,9 @@ export class ProductsService {
   ): Promise<FindAllProductsResult> {
     const cursorKey = cursor || 'first'
     const cacheKey = `catalog:cursor:${cursorKey}:limit:${limit}`
+    const fallbackKey = `fallback:${cacheKey}`
 
-    // 1. Consulta ao Cache Distribuído (Redis)
+    // 1. Consulta ao Cache Distribuído Primário (Redis)
     const cachedData = await this.cache.get<CursorPaginatedProducts>(cacheKey)
     if (cachedData) {
       this.logger.log(`Catálogo recuperado do cache Redis (HIT)`, {
@@ -84,23 +86,55 @@ export class ProductsService {
         }
       }
 
-      // 4. Consulta ao banco de dados via Prisma com Index Scan O(1)
-      this.logger.log(`Consultando catálogo no banco de dados (MISS)`, {
-        cache_key: cacheKey,
-        cache_status: 'MISS',
-        limit,
-        has_cursor: !!parsedCursor,
-      })
+      // 4. Consulta ao banco de dados com Fallback Gracioso em caso de degradação
+      try {
+        this.logger.log(`Consultando catálogo no banco de dados (MISS)`, {
+          cache_key: cacheKey,
+          cache_status: 'MISS',
+          limit,
+          has_cursor: !!parsedCursor,
+        })
 
-      const productsData = await this.productRepo.findPaginated({
-        limit,
-        cursor: parsedCursor,
-      })
+        const productsData = await this.productRepo.findPaginated({
+          limit,
+          cursor: parsedCursor,
+        })
 
-      // 5. Salva no Redis com TTL de 30s
-      await this.cache.set(cacheKey, productsData, this.CACHE_TTL_SECONDS)
+        // 5. Atualiza cache quente (30s) e cópia de fallback resiliente (24h)
+        await this.cache.set(cacheKey, productsData, this.CACHE_TTL_SECONDS)
+        await this.cache.set(
+          fallbackKey,
+          productsData,
+          this.FALLBACK_TTL_SECONDS,
+        )
 
-      return { data: productsData, cacheStatus: 'MISS' }
+        return { data: productsData, cacheStatus: 'MISS' }
+      } catch (dbError) {
+        this.logger.warn(
+          `Falha na consulta ao banco de dados: ${dbError.message}. Tentando acionar Fallback Gracioso...`,
+          {
+            cache_key: cacheKey,
+            error: dbError.message,
+          },
+        )
+
+        // Fallback Gracioso: entrega a última versão conhecida preservada no Redis
+        const staleData =
+          await this.cache.get<CursorPaginatedProducts>(fallbackKey)
+        if (staleData) {
+          this.logger.warn(
+            `Fallback Gracioso ativado com sucesso: vitrine servida a partir de dados cacheados preservados (STALE).`,
+            {
+              cache_key: fallbackKey,
+              cache_status: 'STALE',
+            },
+          )
+          return { data: staleData, cacheStatus: 'STALE' }
+        }
+
+        // Se nem o fallback existir, propaga a falha
+        throw dbError
+      }
     } finally {
       if (acquiredLock) {
         await this.cache.releaseLock(lockKey)

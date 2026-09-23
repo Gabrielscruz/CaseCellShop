@@ -33,8 +33,12 @@ export class ProductsController {
     headers: {
       'x-cache-status': {
         description:
-          'Informa se os dados vieram da memória do Redis (HIT) ou do PostgreSQL (MISS)',
-        schema: { type: 'string', example: 'HIT' },
+          'Informa a estratégia de entrega do cache: HIT (memória Redis), MISS (banco PostgreSQL) ou STALE (Fallback Gracioso resiliente sob falha do banco)',
+        schema: {
+          type: 'string',
+          example: 'HIT',
+          enum: ['HIT', 'MISS', 'STALE'],
+        },
       },
     },
   })

@@ -158,4 +158,54 @@ describe('ProductsService (Cursor-Based Pagination & Cache-Aside Redis)', () => 
       service.findAll(1000, 'cursor-invalido-corrompido'),
     ).rejects.toThrow(BadRequestException)
   })
+
+  it('deve acionar o Fallback Gracioso e retornar status STALE com os dados preservados quando o banco falhar', async () => {
+    const staleData: CursorPaginatedProducts = {
+      items: [
+        {
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          name: 'Capa Silicone iPhone 15 Pro',
+          description: 'Top',
+          price: 89.9,
+          stockQty: 10,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      limit: 1000,
+    }
+
+    // 1ª leitura do cache quente: null (MISS)
+    mockCacheService.get.mockResolvedValueOnce(null)
+    mockCacheService.acquireLock.mockResolvedValueOnce(true)
+
+    // Consulta ao PostgreSQL: simula falha/timeout severo
+    mockProductRepo.findPaginated.mockRejectedValueOnce(
+      new Error('PostgreSQL Connection Timeout'),
+    )
+
+    // Leitura da chave de Fallback de longa retenção no Redis: recupera com sucesso
+    mockCacheService.get.mockResolvedValueOnce(staleData)
+
+    const result = await service.findAll()
+
+    expect(result.cacheStatus).toBe('STALE')
+    expect(result.data).toEqual(staleData)
+    expect(mockCacheService.releaseLock).toHaveBeenCalledWith(
+      'lock:catalog:cursor:first:limit:1000',
+    )
+  })
+
+  it('deve propagar o erro caso o banco falhe e não haja nenhum fallback em cache', async () => {
+    mockCacheService.get.mockResolvedValueOnce(null)
+    mockCacheService.acquireLock.mockResolvedValueOnce(true)
+    mockProductRepo.findPaginated.mockRejectedValueOnce(
+      new Error('PostgreSQL Fatal Error'),
+    )
+    mockCacheService.get.mockResolvedValueOnce(null) // Nem o fallback existe
+
+    await expect(service.findAll()).rejects.toThrow('PostgreSQL Fatal Error')
+  })
 })
