@@ -1,11 +1,10 @@
-import { Module } from '@nestjs/common';
-import { ProductsController } from './products.controller';
-import { GetProductsUseCase } from './use-cases/get-products.use-case';
+import { Module } from '@nestjs/common'
+import { ProductsController } from './products.controller'
+import { ProductsService } from './products.service'
 
 @Module({
   controllers: [ProductsController],
-  providers: [GetProductsUseCase],
-  exports: [GetProductsUseCase],
+  providers: [ProductsService],
+  exports: [ProductsService],
 })
 export class ProductsModule {}
-

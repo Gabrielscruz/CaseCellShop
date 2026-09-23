@@ -17,6 +17,7 @@ model Product {
   stock       Stock?
   orderItems  OrderItem[]
 
+  @@index([createdAt(sort: Desc), id], map: "idx_products_created_at_id")
   @@map("products")
 }
 

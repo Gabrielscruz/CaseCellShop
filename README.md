@@ -98,14 +98,50 @@ A especificação interativa OpenAPI 3.0 (Swagger) fica disponível em:
 👉 **`http://localhost:3000/api/docs`**
 
 ### 3.1. `GET /products`
-Retorna a listagem paginada de capinhas de celular.
-- **Cache-Aside:** Na 1ª requisição consulta o PostgreSQL e salva no Redis com TTL de 30 segundos. Na 2ª requisição responde direto da memória do Redis em sub-milissegundos.
-- **Prevenção de Cache Stampede:** Utiliza lock distribuído atômico (`SET lock:catalog:... NX PX 2000`).
+Retorna o catálogo de capinhas com **Cursor-Based Pagination** (eliminação completa de OFFSET para escala $O(1)$ sobre os 10.000 produtos) e **Cache-Aside (Redis)**.
+- **Ordenação:** `created_at DESC`, `id DESC` (determinística com índice composto `idx_products_created_at_id`).
+- **Cursor Opaque:** Serializado em Base64 a partir de `{ createdAt, id }`.
+- **Chave de Cache no Redis:** `catalog:cursor:${cursor || 'first'}:limit:${limit}` com TTL de 30s.
+- **Prevenção de Cache Stampede:** Lock distribuído atômico no Redis (`SET lock:catalog:cursor:... NX PX 2000`).
 - **Cabeçalho de Resposta:** `x-cache-status: HIT | MISS`.
 
+* **1ª Página (sem cursor):**
+  ```bash
+  curl -i -X GET "http://localhost:3000/products?limit=10" \
+    -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000"
+  ```
+  *Exemplo de Resposta:*
+  ```json
+  {
+    "items": [...],
+    "nextCursor": "eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIxOjQxOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9",
+    "hasMore": true,
+    "limit": 10
+  }
+  ```
+
+* **Próxima Página (usando o nextCursor retornado):**
+  ```bash
+  curl -i -X GET "http://localhost:3000/products?limit=10&cursor=eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIxOjQxOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9" \
+    -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000"
+  ```
+
+### 3.2. `GET /health`
+Verifica ativamente a integridade e prontidão da aplicação, checando a conectividade real do PostgreSQL (via Prisma) e do Redis.
 ```bash
-curl -i -X GET "http://localhost:3000/products?page=1&limit=5" \
-  -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000"
+curl -i -X GET "http://localhost:3000/health"
+```
+*Exemplo de Resposta (HTTP 200 OK):*
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-09-22T22:28:00.000Z",
+  "uptimeSeconds": 42.5,
+  "services": {
+    "database": "up",
+    "redis": "up"
+  }
+}
 ```
 
 ### 3.2. `POST /checkout`

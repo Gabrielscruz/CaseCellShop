@@ -1,6 +1,6 @@
-import { Injectable, LoggerService as INestLogger } from '@nestjs/common';
-import pino from 'pino';
-import { correlationStorage } from './correlation-id.middleware';
+import { Injectable, LoggerService as INestLogger } from '@nestjs/common'
+import pino from 'pino'
+import { correlationStorage } from './correlation-id.middleware'
 
 @Injectable()
 export class StructuredLoggerService implements INestLogger {
@@ -9,13 +9,13 @@ export class StructuredLoggerService implements INestLogger {
     timestamp: pino.stdTimeFunctions.isoTime,
     formatters: {
       level(label) {
-        return { level: label };
+        return { level: label }
       },
     },
-  });
+  })
 
   private getCorrelationId(): string | undefined {
-    return correlationStorage.getStore();
+    return correlationStorage.getStore()
   }
 
   log(message: string, context?: Record<string, any>) {
@@ -23,7 +23,7 @@ export class StructuredLoggerService implements INestLogger {
       correlation_id: this.getCorrelationId(),
       ...context,
       msg: message,
-    });
+    })
   }
 
   error(message: string, trace?: string, context?: Record<string, any>) {
@@ -32,7 +32,7 @@ export class StructuredLoggerService implements INestLogger {
       stack_trace: trace,
       ...context,
       msg: message,
-    });
+    })
   }
 
   warn(message: string, context?: Record<string, any>) {
@@ -40,7 +40,7 @@ export class StructuredLoggerService implements INestLogger {
       correlation_id: this.getCorrelationId(),
       ...context,
       msg: message,
-    });
+    })
   }
 
   debug(message: string, context?: Record<string, any>) {
@@ -48,7 +48,7 @@ export class StructuredLoggerService implements INestLogger {
       correlation_id: this.getCorrelationId(),
       ...context,
       msg: message,
-    });
+    })
   }
 
   verbose(message: string, context?: Record<string, any>) {
@@ -56,7 +56,6 @@ export class StructuredLoggerService implements INestLogger {
       correlation_id: this.getCorrelationId(),
       ...context,
       msg: message,
-    });
+    })
   }
 }
-
