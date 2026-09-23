@@ -5,13 +5,11 @@ import {
   IProductRepository,
 } from '../src/core/products/product.repository.interface'
 import { RedisCacheService } from '../src/infra/cache/redis-cache.service'
-import { StructuredLoggerService } from '../src/infra/observability/logger.service'
 
-describe('ProductsService (Cursor-Based Pagination & Cache-Aside Redis)', () => {
+describe('ProductsService (Clean Architecture & SOLID)', () => {
   let service: ProductsService
   let mockProductRepo: jest.Mocked<IProductRepository>
   let mockCacheService: jest.Mocked<RedisCacheService>
-  let mockLogger: jest.Mocked<StructuredLoggerService>
 
   beforeEach(() => {
     mockProductRepo = {
@@ -30,97 +28,60 @@ describe('ProductsService (Cursor-Based Pagination & Cache-Aside Redis)', () => 
       acquireIdempotencyLock: jest.fn(),
       setIdempotencyResult: jest.fn(),
       getIdempotencyResult: jest.fn(),
+      getOrSetWithFallback: jest.fn(),
     } as any
 
-    mockLogger = {
-      log: jest.fn(),
-      error: jest.fn(),
-      warn: jest.fn(),
-      debug: jest.fn(),
-      verbose: jest.fn(),
-    } as any
-
-    service = new ProductsService(mockProductRepo, mockCacheService, mockLogger)
+    service = new ProductsService(mockProductRepo, mockCacheService)
   })
 
-  it('deve retornar dados do cache (HIT) para o limite padrão de 1000 itens quando a chave existir', async () => {
-    const cachedData: CursorPaginatedProducts = {
-      items: [
-        {
-          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          name: 'Capinha Silicone iPhone 15 Pro',
-          description: 'Top',
-          price: 89.9,
-          stockQty: 10,
-          createdAt: new Date('2026-09-22T20:00:00.000Z'),
-          updatedAt: new Date('2026-09-22T20:00:00.000Z'),
-        },
-      ],
-      nextCursor:
-        'eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIwOjAwOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9',
-      hasMore: true,
-      limit: 1000,
+  it('deve delegar a busca ao RedisCacheService usando chave de cache e limit corretos', async () => {
+    const mockResult = {
+      data: {
+        items: [
+          {
+            id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+            name: 'Capinha Silicone iPhone 15 Pro',
+            description: 'Top',
+            price: 89.9,
+            stockQty: 10,
+            createdAt: new Date('2026-09-22T20:00:00.000Z'),
+            updatedAt: new Date('2026-09-22T20:00:00.000Z'),
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        limit: 1000,
+      },
+      cacheStatus: 'HIT' as const,
     }
 
-    mockCacheService.get.mockResolvedValueOnce(cachedData)
+    mockCacheService.getOrSetWithFallback.mockResolvedValueOnce(mockResult)
 
     const result = await service.findAll()
 
-    expect(result.cacheStatus).toBe('HIT')
-    expect(result.data).toEqual(cachedData)
-    expect(mockProductRepo.findPaginated).not.toHaveBeenCalled()
-    expect(mockCacheService.get).toHaveBeenCalledWith(
-      'catalog:cursor:first:limit:1000',
+    expect(result).toEqual(mockResult)
+    expect(mockCacheService.getOrSetWithFallback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'catalog:cursor:first:limit:1000',
+        ttlSeconds: 30,
+        fallbackTtlSeconds: 86400,
+      }),
     )
   })
 
-  it('deve consultar o banco de dados (MISS) na primeira página com limit 1000 default, salvar no cache e liberar lock', async () => {
-    const dbData: CursorPaginatedProducts = {
-      items: [
-        {
-          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          name: 'Capinha Silicone iPhone 15 Pro',
-          description: 'Top',
-          price: 89.9,
-          stockQty: 10,
-          createdAt: new Date('2026-09-22T20:00:00.000Z'),
-          updatedAt: new Date('2026-09-22T20:00:00.000Z'),
-        },
-      ],
-      nextCursor:
-        'eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIwOjAwOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9',
-      hasMore: true,
-      limit: 1000,
-    }
-
-    mockCacheService.get.mockResolvedValueOnce(null)
-    mockCacheService.acquireLock.mockResolvedValueOnce(true)
-    mockProductRepo.findPaginated.mockResolvedValueOnce(dbData)
-
-    const result = await service.findAll()
-
-    expect(result.cacheStatus).toBe('MISS')
-    expect(result.data).toEqual(dbData)
-    expect(mockProductRepo.findPaginated).toHaveBeenCalledWith({
-      limit: 1000,
-      cursor: undefined,
-    })
-    expect(mockCacheService.set).toHaveBeenCalledWith(
-      'catalog:cursor:first:limit:1000',
-      dbData,
-      30,
-    )
-    expect(mockCacheService.releaseLock).toHaveBeenCalledWith(
-      'lock:catalog:cursor:first:limit:1000',
-    )
-  })
-
-  it('deve decodificar o cursor Base64 e consultar a próxima página de 1000 itens', async () => {
+  it('deve decodificar o cursor Base64URL e repassar ao loader do repositório', async () => {
     const cursorDate = '2026-09-22T19:30:00.000Z'
     const cursorId = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22'
     const rawCursor = Buffer.from(
       JSON.stringify({ createdAt: cursorDate, id: cursorId }),
     ).toString('base64url')
+
+    mockCacheService.getOrSetWithFallback.mockImplementation(
+      async (options) => {
+        const data = await options.loader()
+        return { data, cacheStatus: 'MISS' }
+      },
+    )
 
     const dbData: CursorPaginatedProducts = {
       items: [],
@@ -128,9 +89,6 @@ describe('ProductsService (Cursor-Based Pagination & Cache-Aside Redis)', () => 
       hasMore: false,
       limit: 1000,
     }
-
-    mockCacheService.get.mockResolvedValueOnce(null)
-    mockCacheService.acquireLock.mockResolvedValueOnce(true)
     mockProductRepo.findPaginated.mockResolvedValueOnce(dbData)
 
     const result = await service.findAll(1000, rawCursor)
@@ -143,69 +101,30 @@ describe('ProductsService (Cursor-Based Pagination & Cache-Aside Redis)', () => 
         id: cursorId,
       },
     })
-    expect(mockCacheService.set).toHaveBeenCalledWith(
-      `catalog:cursor:${rawCursor}:limit:1000`,
-      dbData,
-      30,
-    )
   })
 
-  it('deve lançar BadRequestException se o cursor for uma string corrompida', async () => {
-    mockCacheService.get.mockResolvedValueOnce(null)
-    mockCacheService.acquireLock.mockResolvedValueOnce(true)
-
+  it('deve lançar BadRequestException se o cursor de paginação for inválido ou corrompido', async () => {
     await expect(
-      service.findAll(1000, 'cursor-invalido-corrompido'),
+      service.findAll(1000, 'cursor-totalmente-invalido'),
     ).rejects.toThrow(BadRequestException)
+
+    expect(mockCacheService.getOrSetWithFallback).not.toHaveBeenCalled()
   })
 
-  it('deve acionar o Fallback Gracioso e retornar status STALE com os dados preservados quando o banco falhar', async () => {
-    const staleData: CursorPaginatedProducts = {
-      items: [
-        {
-          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          name: 'Capa Silicone iPhone 15 Pro',
-          description: 'Top',
-          price: 89.9,
-          stockQty: 10,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ],
-      nextCursor: null,
-      hasMore: false,
-      limit: 1000,
+  it('deve repassar findById diretamente para o repositório', async () => {
+    const mockProduct = {
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      name: 'Capinha MagSafe',
+      description: 'Premium',
+      price: 120,
+      stockQty: 5,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
+    mockProductRepo.findById.mockResolvedValueOnce(mockProduct)
 
-    // 1ª leitura do cache quente: null (MISS)
-    mockCacheService.get.mockResolvedValueOnce(null)
-    mockCacheService.acquireLock.mockResolvedValueOnce(true)
-
-    // Consulta ao PostgreSQL: simula falha/timeout severo
-    mockProductRepo.findPaginated.mockRejectedValueOnce(
-      new Error('PostgreSQL Connection Timeout'),
-    )
-
-    // Leitura da chave de Fallback de longa retenção no Redis: recupera com sucesso
-    mockCacheService.get.mockResolvedValueOnce(staleData)
-
-    const result = await service.findAll()
-
-    expect(result.cacheStatus).toBe('STALE')
-    expect(result.data).toEqual(staleData)
-    expect(mockCacheService.releaseLock).toHaveBeenCalledWith(
-      'lock:catalog:cursor:first:limit:1000',
-    )
-  })
-
-  it('deve propagar o erro caso o banco falhe e não haja nenhum fallback em cache', async () => {
-    mockCacheService.get.mockResolvedValueOnce(null)
-    mockCacheService.acquireLock.mockResolvedValueOnce(true)
-    mockProductRepo.findPaginated.mockRejectedValueOnce(
-      new Error('PostgreSQL Fatal Error'),
-    )
-    mockCacheService.get.mockResolvedValueOnce(null) // Nem o fallback existe
-
-    await expect(service.findAll()).rejects.toThrow('PostgreSQL Fatal Error')
+    const result = await service.findById(mockProduct.id)
+    expect(result).toEqual(mockProduct)
+    expect(mockProductRepo.findById).toHaveBeenCalledWith(mockProduct.id)
   })
 })

@@ -6,6 +6,7 @@ import {
   IProductRepository,
 } from '../../core/products/product.repository.interface'
 import { Product } from '../../core/products/product.entity'
+import { encodeCursor } from '../../utils/cursor.util'
 
 @Injectable()
 export class PrismaProductRepository implements IProductRepository {
@@ -50,13 +51,7 @@ export class PrismaProductRepository implements IProductRepository {
     let nextCursor: string | null = null
     if (hasMore && items.length > 0) {
       const lastItem = items[items.length - 1]
-      const cursorPayload = {
-        createdAt: lastItem.createdAt.toISOString(),
-        id: lastItem.id,
-      }
-      nextCursor = Buffer.from(JSON.stringify(cursorPayload)).toString(
-        'base64url',
-      )
+      nextCursor = encodeCursor(lastItem.createdAt, lastItem.id)
     }
 
     return {
