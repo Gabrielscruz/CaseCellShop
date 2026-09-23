@@ -15,7 +15,10 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:concurrency": "jest --testPathPattern=test/concurrency.spec.ts --runInBand",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "prisma db seed",
+    "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -75,5 +78,8 @@
     ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   }
 }

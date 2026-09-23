@@ -60,12 +60,23 @@ src/
 ```bash
 docker compose up -d
 ```
-> O PostgreSQL 16 executará automaticamente o script `init.sql`, criando as tabelas com constraints de integridade (`CHECK (qty >= 0)`) e inserindo as capinhas de celular no catálogo.
+> Os contêineres do PostgreSQL e Redis sobem limpos e isolados via Docker Compose com as variáveis do `.env`.
 
-### Passo 2: Instalar dependências, gerar Prisma Client e compilar
+### Passo 2: Instalar dependências, preparar o banco via Prisma e compilar
 ```bash
+# 1. Instalar pacotes
 npm install
+
+# 2. Gerar o cliente tipado do Prisma
 npx prisma generate
+
+# 3. Aplicar o schema no PostgreSQL (Padrão Prisma)
+npx prisma db push
+
+# 4. Executar o seed de produtos e estoques (Padrão Prisma)
+npx prisma db seed
+
+# 5. Compilar o projeto
 npm run build
 ```
 
