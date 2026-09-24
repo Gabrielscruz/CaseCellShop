@@ -221,3 +221,57 @@ npm test
   - Exatamente **10 requisições** retornam sucesso (`ACCEPTED`).
   - Exatamente **90 requisições** retornam conflito por falta de estoque (`ConflictException` - HTTP 409).
   - O saldo remanescente é rigorosamente **0 unidades** (Zero Overselling).
+
+---
+
+## 6. Rastreabilidade Distribuída (Trace / Span Stub)
+
+Para manter a solução leve e executável localmente sem a necessidade de hospedar um coletor OpenTelemetry (Jaeger/Zipkin/Datadog Agent), a aplicação adota uma estratégia de **Tracing Distribuído via W3C TraceContext / Correlation ID** propagado de forma contextual contínua:
+
+1. **Camada HTTP (Ingress):** O `CorrelationIdMiddleware` captura ou gera um `x-correlation-id` (UUID v4) e o injeta no `AsyncLocalStorage`.
+2. **Camada de Cache (Redis):** Operações de lock e leitura utilizam chaves com logs correlacionados.
+3. **Persistência (PostgreSQL):** Pedidos e itens são associados à chave de idempotência e correlation context.
+4. **Mensageria (RabbitMQ):** O produtor (`publish`) injeta o `correlationId` no payload da mensagem e nos headers AMQP.
+5. **Worker em Segundo Plano (`OrdersConsumer`):** O consumidor extrai o `correlationId` da mensagem e o vincula a todos os logs de transição de estado (`ACCEPTED` ➔ `PROCESSING` ➔ `BILLED`), fechando o ciclo do span distribuído da requisição original até o faturamento.
+
+---
+
+## 7. Observabilidade Datadog / Grafana: Dashboards, Alertas e Runbook
+
+### 7.1. Proposta de Dashboard (Datadog / Grafana)
+* **Widget 1 (Time-series):** Taxa de Checkout e Funil de Pedidos (`sum by (status) (rate(checkout_orders_total[1m]))`).
+* **Widget 2 (Gauge/Single Value):** Cache Hit Ratio da Vitrine (`sum(rate(cache_requests_total{status="hit"}[5m])) / sum(rate(cache_requests_total[5m])) * 100`). Target: > 85%.
+* **Widget 3 (Bar/Count):** Mensagens na DLQ (`queue_messages_dlq_total`). Target: 0.
+* **Widget 4 (Heatmap/Percentiles):** Latência p95 e p99 de listagem de catálogo e checkout (`http_request_duration_seconds`).
+
+### 7.2. Alertas Críticos (Monitors)
+
+#### Alerta 1: DLQ com mensagens acumuladas (Severidade: P1 - Crítico)
+* **Condição:** `sum(queue_messages_dlq_total) > 0` por mais de 2 minutos.
+* **Mensagem:** `[CRÍTICO] Pedidos não processados foram parar na DLQ (orders.dlq). Possível indisponibilidade ou inconsistência no processamento assíncrono.`
+
+#### Alerta 2: Taxa de rejeição por falta de estoque anormal (Severidade: P2 - Aviso)
+* **Condição:** `sum(rate(checkout_stockout_rejected_total[5m])) > 10` por 5 minutos.
+* **Mensagem:** `[AVISO] Pico de rejeição por esgotamento de estoque (Flash Sale detectado ou reposição necessária).`
+
+### 7.3. Runbook Operacional (Resposta a Incidentes)
+
+#### Runbook: Mensagens na Dead Letter Queue (`orders.dlq`)
+1. **Identificação:** Filtrar logs estruturados pelo Datadog com a tag `queue: "orders.dlq"` ou buscar mensagens no RabbitMQ Management (`http://localhost:15672`).
+2. **Diagnóstico:** Extrair o `correlation_id` e o `order_id` dos metadados da mensagem rejeitada.
+3. **Inspeção do Erro:** Verificar o campo `failureReason` na tabela `orders` do PostgreSQL ou no log de erro do `OrdersConsumer`.
+4. **Remediação:**
+   - Se foi falha de timeout/conectividade com ERP: acionar o comando de reprocessamento (shovel/re-enqueue) da DLQ para `orders.process`.
+   - Se o pedido foi cancelado definitivamente: o estorno atômico de estoque (`incrementStockAtomic`) é acionado automaticamente pela compensação da SAGA.
+
+---
+
+## 8. Decisões Arquiteturais, Trade-offs e Limitações
+
+| Decisão / Abordagem | Alternativa Rejeitada | Justificativa e Trade-offs |
+| :--- | :--- | :--- |
+| **RabbitMQ com AMQP nativo** | Redis BullMQ ou Kafka | AMQP nativo fornece suporte robusto a Direct Exchanges duráveis, Prefetch QoS e Dead Letter Exchanges (DLQ) sem overhead de cluster Kafka. |
+| **Baixa Atômica Condicional no Postgres** | Lock Pessimista (`SELECT FOR UPDATE`) | `UPDATE stock SET quantity = quantity - $1 WHERE quantity >= $1` não bloqueia leitura de outros produtos e elimina deadlocks comuns em `SELECT FOR UPDATE` sob alta concorrência. |
+| **Paginação por Cursor Opaque (Base64)** | Paginação por Offset (`LIMIT x OFFSET y`) | Offset degrada para $O(N)$ em tabelas grandes e gera inconsistências com inserts/deletes concorrentes. Cursor tem custo $O(1)$ constante via índice composto `(created_at, id)`. |
+| **Idempotência no Redis + Unique DB** | Apenas checagem no banco | Chave no Redis com lock atômico responde retentativas em menos de 10ms sem onerar a pool de conexões do PostgreSQL. |
+| **Simplificações do Desafio** | E-commerce completo | Autenticação omitida, envio ao ERP simulado pelo worker com delay programado de 5s entre status, sem gateway financeiro real (foco estritamente na engenharia de backend e concorrência). |

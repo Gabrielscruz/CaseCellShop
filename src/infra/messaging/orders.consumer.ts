@@ -21,11 +21,9 @@ export interface OrderQueueMessage {
   }[]
   correlationId?: string
 }
-
 @Injectable()
 export class OrdersConsumer implements OnModuleInit {
-  private readonly STATUS_TRANSITION_DELAY_MS = 5000 // 5 segundos para simular processamento realista entre transições de status
-
+  private readonly STATUS_TRANSITION_DELAY_MS = 30000 // 30 segundos para simular processamento realista entre transições de status
   constructor(
     private readonly rabbitmq: RabbitMQService,
     @Inject(ORDER_REPOSITORY)
