@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from './prisma.service';
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from './prisma.service'
 import {
   CreateOrderData,
   IOrderRepository,
-} from '../../core/orders/order.repository.interface';
-import { Order, OrderStatus } from '../../core/orders/order.entity';
+} from '../../core/orders/order.repository.interface'
+import { Order, OrderStatus } from '../../core/orders/order.entity'
 
 @Injectable()
 export class PrismaOrderRepository implements IOrderRepository {
@@ -28,7 +28,7 @@ export class PrismaOrderRepository implements IOrderRepository {
       include: {
         items: true,
       },
-    });
+    })
 
     return {
       id: createdOrder.id,
@@ -42,16 +42,16 @@ export class PrismaOrderRepository implements IOrderRepository {
       })),
       createdAt: createdOrder.createdAt,
       updatedAt: createdOrder.updatedAt,
-    };
+    }
   }
 
   async findById(id: string): Promise<Order | null> {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { items: true },
-    });
+    })
 
-    if (!order) return null;
+    if (!order) return null
 
     return {
       id: order.id,
@@ -66,16 +66,16 @@ export class PrismaOrderRepository implements IOrderRepository {
       })),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
-    };
+    }
   }
 
   async findByIdempotencyKey(key: string): Promise<Order | null> {
     const order = await this.prisma.order.findUnique({
       where: { idempotencyKey: key },
       include: { items: true },
-    });
+    })
 
-    if (!order) return null;
+    if (!order) return null
 
     return {
       id: order.id,
@@ -90,17 +90,21 @@ export class PrismaOrderRepository implements IOrderRepository {
       })),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
-    };
+    }
   }
 
-  async updateStatus(id: string, status: OrderStatus, failureReason?: string): Promise<void> {
+  async updateStatus(
+    id: string,
+    status: OrderStatus,
+    failureReason?: string,
+  ): Promise<void> {
     await this.prisma.order.update({
       where: { id },
       data: {
         status,
         failureReason: failureReason || null,
       },
-    });
+    })
   }
 }
 
