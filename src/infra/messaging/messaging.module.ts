@@ -8,4 +8,3 @@ import { OrdersConsumer } from './orders.consumer'
   exports: [RabbitMQService],
 })
 export class MessagingModule {}
-

@@ -174,4 +174,3 @@ export class OrdersService {
     return crypto.createHash('sha256').update(rawData).digest('hex')
   }
 }
-

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-} from '@nestjs/common'
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 import * as amqp from 'amqplib'
 import { StructuredLoggerService } from '../observability/logger.service'
 
@@ -64,13 +60,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       // Prefetch de 10 mensagens por worker para equilíbrio de carga
       await this.channel.prefetch(10)
 
-      this.logger.log('Conexão com RabbitMQ e topologia de filas estabelecidas com sucesso.')
-    } catch (error) {
-      this.logger.error(
-        'Falha ao conectar no RabbitMQ',
-        undefined,
-        { error: error.message },
+      this.logger.log(
+        'Conexão com RabbitMQ e topologia de filas estabelecidas com sucesso.',
       )
+    } catch (error) {
+      this.logger.error('Falha ao conectar no RabbitMQ', undefined, {
+        error: error.message,
+      })
     }
   }
 

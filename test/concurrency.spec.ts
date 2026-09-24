@@ -145,4 +145,3 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
     expect(currentStock).toBe(0)
   })
 })
-

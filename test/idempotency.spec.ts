@@ -103,7 +103,9 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
     const key = 'user-retry-key-uuid'
     const dto = {
       customerId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
-      items: [{ productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 }],
+      items: [
+        { productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 },
+      ],
     }
 
     const firstCall = await service.processCheckout(dto, key, 'corr-1')
@@ -124,7 +126,9 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
       service.processCheckout(
         {
           customerId: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
-          items: [{ productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 }],
+          items: [
+            { productId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', quantity: 1 },
+          ],
         },
         key,
         'corr-3',
@@ -134,4 +138,3 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
     expect(stock).toBe(10)
   })
 })
-

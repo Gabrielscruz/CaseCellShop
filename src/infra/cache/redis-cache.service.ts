@@ -3,6 +3,7 @@ import Redis from 'ioredis'
 import { REDIS_CLIENT } from './redis.client'
 import { MetricsService } from '../observability/metrics.service'
 import { StructuredLoggerService } from '../observability/logger.service'
+import { delay } from '../../utils/time.util'
 
 export interface ResilientCacheOptions<T> {
   key: string
@@ -19,6 +20,8 @@ export interface ResilientCacheResult<T> {
 
 @Injectable()
 export class RedisCacheService {
+  private readonly STAMPEDE_LOCK_RETRY_DELAY_MS = 80
+
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly metrics: MetricsService,
@@ -104,7 +107,7 @@ export class RedisCacheService {
     const acquiredLock = await this.acquireLock(key, lockTtlMs)
 
     if (!acquiredLock) {
-      await new Promise((resolve) => setTimeout(resolve, 80))
+      await delay(this.STAMPEDE_LOCK_RETRY_DELAY_MS)
       const retryCachedData = await this.get<T>(key)
       if (retryCachedData) {
         return { data: retryCachedData, cacheStatus: 'HIT' }

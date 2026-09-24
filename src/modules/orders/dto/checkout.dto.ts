@@ -31,7 +31,8 @@ export class CheckoutItemDto {
 
 export class CheckoutDto {
   @ApiProperty({
-    description: 'Identificador único do cliente / usuário que realiza a compra',
+    description:
+      'Identificador único do cliente / usuário que realiza a compra',
     example: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
   })
   @IsUUID('4', { message: 'O customerId deve ser um UUID válido v4.' })
@@ -63,4 +64,3 @@ export class CheckoutResponseDto {
   })
   status: string
 }
-

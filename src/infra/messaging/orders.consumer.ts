@@ -11,6 +11,7 @@ import {
 import { OrderStatus } from '../../core/orders/order.entity'
 import { StructuredLoggerService } from '../observability/logger.service'
 import { MetricsService } from '../observability/metrics.service'
+import { delay } from '../../utils/time.util'
 
 export interface OrderQueueMessage {
   orderId: string
@@ -23,6 +24,8 @@ export interface OrderQueueMessage {
 
 @Injectable()
 export class OrdersConsumer implements OnModuleInit {
+  private readonly STATUS_TRANSITION_DELAY_MS = 5000 // 5 segundos para simular processamento realista entre transições de status
+
   constructor(
     private readonly rabbitmq: RabbitMQService,
     @Inject(ORDER_REPOSITORY)
@@ -54,10 +57,14 @@ export class OrdersConsumer implements OnModuleInit {
       correlationId,
     })
 
+    await delay(this.STATUS_TRANSITION_DELAY_MS)
     await this.orderRepo.updateStatus(orderId, OrderStatus.PROCESSING)
+    this.logger.log(`Pedido ${orderId} atualizado para status PROCESSING.`, {
+      orderId,
+      status: 'PROCESSING',
+    })
 
     try {
-      // Simulação do faturamento no ERP externo com resiliência
       await this.simulateErpBilling(orderId)
 
       await this.orderRepo.updateStatus(orderId, OrderStatus.BILLED)
@@ -103,13 +110,10 @@ export class OrdersConsumer implements OnModuleInit {
   }
 
   private async simulateErpBilling(orderId: string): Promise<void> {
-    // Simula chamada HTTP externa rápida (50ms)
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await delay(this.STATUS_TRANSITION_DELAY_MS)
 
-    // Se o orderId contiver "fail-erp", força uma falha para testes de DLQ e compensação
     if (orderId.includes('fail-erp')) {
       throw new Error('ERP Gateway: Falha de comunicação ou cartão recusado')
     }
   }
 }
-
