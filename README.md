@@ -13,37 +13,35 @@ Este projeto implementa uma arquitetura resiliente, de alta performance e desaco
 
 A aplicação segue a divisão em camadas isoladas por **Inversão de Dependência (DIP)**:
 
-prisma/
-└── schema.prisma                 # 📐 Modelos e Mapeamento de Dados Prisma com UUID
-src/
-├── core/                         # 🏛️ Domínio Puro (Entidades e Interfaces/Ports)
-│   ├── products/
-│   │   ├── product.entity.ts
-│   │   └── product.repository.interface.ts
-│   └── orders/
-│       ├── order.entity.ts
-│       └── order.repository.interface.ts
-│
-├── infra/                        # ⚙️ Infraestrutura Externa e Adapters
-│   ├── database/                 # Prisma ORM (100% Prisma Client API pura: $transaction, decrement, increment)
-│   │   ├── prisma.service.ts
-│   │   ├── prisma-product.repository.ts
-│   │   └── prisma-order.repository.ts
-│   ├── cache/                    # Redis (Cache-Aside + Lock contra Cache Stampede)
-│   │   ├── redis.client.ts
-│   │   └── redis-cache.service.ts
-│   ├── messaging/                # Filas e Workers (BullMQ)
-│   │   ├── orders.queue.ts       # Producer de jobs de checkout
-│   │   └── orders.processor.ts   # Worker resiliente simulando o ERP legado
-│   └── observability/            # Telemetria (Pino JSON + Prometheus metrics)
-│       ├── correlation-id.middleware.ts
-│       ├── logger.service.ts
-│       ├── metrics.service.ts
-│       └── metrics.controller.ts
-│
-├── modules/                      # 📦 Casos de Uso e Controllers NestJS
-│   ├── products/                 # GET /products (Cache-Aside com x-cache-status)
-│   └── orders/                   # POST /checkout (202 Accepted) e GET /orders/:id/status
+```text
+├── Dockerfile                    # 🐳 Multi-stage build otimizado (Builder + Runner enxuto)
+├── docker-compose.yml            # 🚢 Orquestração de App, PostgreSQL 16, Redis 7 e RabbitMQ 3
+├── infra/                        # 🛠️ Configurações declarativas de infraestrutura
+│   ├── app/
+│   │   └── entrypoint.sh         # Script de inicialização (migrations + seed automático + boot)
+│   ├── redis/
+│   │   └── redis.conf            # Configuração otimizada (AOF, maxmemory-policy LRU)
+│   └── rabbitmq/
+│       └── rabbitmq.conf         # Topologia, timeouts e limites de recursos AMQP
+├── prisma/
+│   ├── schema.prisma             # 📐 Modelos e Mapeamento de Dados Prisma com UUID
+│   └── seed.ts                   # 🌱 Seed determinístico de 10.000 produtos e estoque
+├── src/
+│   ├── core/                     # 🏛️ Domínio Puro (Entidades e Interfaces/Ports)
+│   │   ├── products/
+│   │   │   ├── product.entity.ts
+│   │   │   └── product.repository.interface.ts
+│   │   └── orders/
+│   │       ├── order.entity.ts
+│   │       └── order.repository.interface.ts
+│   ├── infra/                    # ⚙️ Infraestrutura Externa e Adapters
+│   │   ├── database/             # Prisma ORM (Driver Adapter pg + atomic updates)
+│   │   ├── cache/                # Redis (Cache-Aside + Lock contra Cache Stampede)
+│   │   ├── messaging/            # Mensageria RabbitMQ (Direct Exchange, DLQ e Consumer)
+│   │   └── observability/        # Telemetria (Pino JSON, Prometheus metrics e Tracing)
+│   └── modules/                  # 📦 Casos de Uso e Controllers NestJS
+│       ├── products/             # GET /products (Cache-Aside com x-cache-status)
+│       └── orders/               # POST /checkout (202 Accepted) e GET /orders/:id/status
 ├── app.module.ts
 └── main.ts
 ```
@@ -53,41 +51,44 @@ src/
 ## 2. Como Executar o Projeto
 
 ### Pré-requisitos
-- **Node.js:** v18 ou superior (testado na v24)
-- **Docker e Docker Compose**
+- **Docker e Docker Compose** instalados (v20+ / Compose v2+)
 
-### Passo 1: Subir os serviços de apoio (PostgreSQL e Redis)
+---
+
+### Opção 1: Execução Completa via Docker Compose (Recomendada — 1 Comando) 🚀
+
+Para inicializar todo o ecossistema (PostgreSQL 16, Redis 7, RabbitMQ 3 e o backend NestJS com aplicação de schema e seed automático):
+
 ```bash
-docker compose up -d
+docker compose up --build
 ```
-> Os contêineres do PostgreSQL e Redis sobem limpos e isolados via Docker Compose com as variáveis do `.env`.
 
-### Passo 2: Instalar dependências, preparar o banco via Prisma e compilar
+> **O que acontece automaticamente:**
+> 1. O contêiner de build compila o TypeScript e prepara os artefatos mínimos em uma imagem final leve baseada em Alpine.
+> 2. O contêiner `app` aguarda os healthchecks de PostgreSQL, Redis e RabbitMQ estarem `healthy`.
+> 3. O script `entrypoint.sh` sincroniza o schema (`npx prisma db push`), executa o seed de 10.000 produtos e sobe a aplicação.
+> 4. A API e a documentação interativa estarão disponíveis imediatamente em **`http://localhost:3000`**.
+
+---
+
+### Opção 2: Execução em Desenvolvimento Local (Host)
+
+Caso prefira rodar o Node.js localmente na máquina host:
+
 ```bash
-# 1. Instalar pacotes
+# 1. Subir apenas os serviços de apoio
+docker compose up -d postgres redis rabbitmq
+
+# 2. Instalar dependências e preparar o banco
 npm install
-
-# 2. Gerar o cliente tipado do Prisma
 npx prisma generate
-
-# 3. Aplicar o schema no PostgreSQL (Padrão Prisma)
 npx prisma db push
+npm run prisma:seed
 
-# 4. Executar o seed de produtos e estoques (Padrão Prisma)
-npx prisma db seed
-
-# 5. Compilar o projeto
-npm run build
-```
-
-### Passo 3: Iniciar a aplicação
-```bash
-# Modo Produção
-npm run start:prod
-
-# Modo Desenvolvimento (com hot-reload)
+# 3. Iniciar a API em modo desenvolvimento (com hot-reload)
 npm run start:dev
 ```
+
 A API estará disponível em `http://localhost:3000`.
 
 ---

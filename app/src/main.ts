@@ -3,9 +3,18 @@ import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { StructuredLoggerService } from './infra/observability/logger.service'
+import * as path from 'path'
 import * as dotenv from 'dotenv'
 
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 dotenv.config()
+
+for (const key of Object.keys(process.env)) {
+  const val = process.env[key]
+  if (val && val.includes('${')) {
+    process.env[key] = val.replace(/\${(\w+)}/g, (_, k) => process.env[k] || '')
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {

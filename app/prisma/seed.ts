@@ -1,11 +1,19 @@
-import 'dotenv/config';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config();
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v4 as uuidv4 } from 'uuid';
 
-const connectionString =
+const rawUrl =
   process.env.DATABASE_URL ||
-  'postgresql://postgres:postgres@localhost:5432/casecellshop?schema=public';
+  `postgresql://${process.env.DB_USER || 'casecellshop'}:${process.env.DB_PASSWORD || 'casecellshop_pwd'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'casecellshop_db'}?schema=public`;
+const connectionString = rawUrl.replace(
+  /\${(\w+)}/g,
+  (_, k) => process.env[k] || '',
+);
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 

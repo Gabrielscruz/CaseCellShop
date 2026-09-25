@@ -123,3 +123,15 @@ Para atender integralmente aos critérios de avaliação sem custos de nuvem:
 > - `queue_messages_dlq_total` e `queue_messages_waiting` (Counters/Gauges)  
 > Escreva para o README um modelo de Runbook detalhando a ação imediata para o alerta 'Spike na DLQ / Lag de Fila'."*  
 > **Revisão Humana:** As métricas foram padronizadas nos moldes solicitados para manter equivalência direta com o Datadog.
+
+---
+
+### Prompt 08: Containerização Multi-Stage e Orquestração 1-Click (Docker Compose)
+> **Contexto:** Permitir que o avaliador técnico clone o repositório e execute a stack completa em produção com um único comando sem depender de ferramentas instaladas no host.  
+> **Prompt:**  
+> *"Gere um `Dockerfile` multi-stage build para a aplicação NestJS com Prisma e Alpine:  
+> 1. Stage Builder: Instale dependências via `npm ci`, gere o cliente tipado do Prisma (`prisma generate`) e compile o TypeScript.  
+> 2. Stage Runner: Crie uma imagem final limpa e enxuta (`node:22-alpine`) contendo apenas os artefatos compilados e dependências necessárias.  
+> 3. Crie arquivos de configuração declarativos em `infra/redis/redis.conf` e `infra/rabbitmq/rabbitmq.conf`.  
+> 4. No `docker-compose.yml`, orquestre o serviço `app` com `depends_on` condicional a `service_healthy` para PostgreSQL, Redis e RabbitMQ, executando um `entrypoint.sh` que sincroniza o schema do Prisma e realiza o seed automaticamente antes do boot da API."*  
+> **Revisão Humana:** Garantiu-se o isolamento dos contêineres, healthchecks ativos e zero atrito de setup na inicialização com `docker compose up --build`.

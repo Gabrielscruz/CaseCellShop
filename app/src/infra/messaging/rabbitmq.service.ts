@@ -41,9 +41,8 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       return this.channel
     }
 
-    const url =
-      process.env.RABBITMQ_URL ||
-      'amqp://casecellshop:casecellshop_pwd@localhost:5672'
+    const rawUrl = process.env.RABBITMQ_URL
+    const url = rawUrl.replace(/\${(\w+)}/g, (_, k) => process.env[k] || '')
 
     try {
       this.connection = await connect(url)
