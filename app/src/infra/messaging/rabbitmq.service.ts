@@ -41,11 +41,30 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       return this.channel
     }
 
-    const url = process.env.RABBITMQ_URL
+    const url =
+      process.env.RABBITMQ_URL ||
+      'amqp://casecellshop:casecellshop_pwd@localhost:5672'
 
     try {
       this.connection = await connect(url)
+      this.connection.on('error', () => {
+        this.connection = null
+        this.channel = null
+        this.initPromise = null
+      })
+      this.connection.on('close', () => {
+        this.connection = null
+        this.channel = null
+        this.initPromise = null
+      })
+
       this.channel = await this.connection.createChannel()
+      this.channel.on('error', () => {
+        this.channel = null
+      })
+      this.channel.on('close', () => {
+        this.channel = null
+      })
 
       await this.channel.assertExchange(this.EXCHANGE_NAME, 'direct', {
         durable: true,

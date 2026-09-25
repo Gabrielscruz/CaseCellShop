@@ -48,9 +48,10 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-casecellshop} -d ${DB_NAME:-casecellshop_db}"]
-      interval: 5s
+      interval: 3s
       timeout: 5s
-      retries: 5
+      retries: 15
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
@@ -92,9 +93,10 @@ services:
       - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   prometheus:
     image: prom/prometheus:latest
@@ -111,8 +113,8 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--web.enable-lifecycle"
-    depends_on:
-      - app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   grafana:
     image: grafana/grafana:latest

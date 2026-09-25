@@ -11,7 +11,9 @@ export class PrismaService
   private readonly pool: Pool
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL
+    const connectionString =
+      process.env.DATABASE_URL ||
+      'postgresql://casecellshop:casecellshop_pwd@localhost:5432/casecellshop_db?schema=public'
     const pool = new Pool({ connectionString })
     const adapter = new PrismaPg(pool)
 

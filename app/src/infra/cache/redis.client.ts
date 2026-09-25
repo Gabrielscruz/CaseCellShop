@@ -3,9 +3,9 @@ import Redis from 'ioredis'
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT')
 
 export function createRedisClient(): Redis {
-  return new Redis({
-    host: process.env.REDIS_HOST,
-    port: parseInt(process.env.REDIS_PORT),
+  const client = new Redis({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     retryStrategy(times) {
@@ -13,4 +13,10 @@ export function createRedisClient(): Redis {
       return delay
     },
   })
+
+  client.on('error', () => {
+    // Evita crash por unhandled error event durante desconexão ou indisponibilidade temporária
+  })
+
+  return client
 }

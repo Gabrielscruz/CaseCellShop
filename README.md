@@ -10,6 +10,18 @@ O **CaseCellShop** é um backend resiliente e escalável desenvolvido em **NestJ
 
 ## 🚀 Como Iniciar
 
+### ⚙️ 0. Configurar Variáveis de Ambiente (Pré-requisito Obrigatório)
+Antes de iniciar a aplicação (em produção ou desenvolvimento), crie o arquivo `.env` na raiz a partir do modelo:
+
+```bash
+# Na raiz do repositório:
+cp .env.example .env
+
+# (Ou caso queira apenas renomear):
+# mv .env.example .env
+```
+> **Nota:** É necessário apenas um único arquivo `.env` na raiz do projeto. Tanto o Docker Compose quanto a aplicação local e o Prisma consomem centralizadamente as variáveis a partir dele.
+
 ### 🏭 Produção (Docker Compose — 1 Comando)
 Para construir as imagens e subir todo o ambiente de produção em segundo plano:
 ```bash
