@@ -180,6 +180,7 @@ A documentação detalhada foi separada em capítulos modulares e aprofundados n
 * 08. 🐰 [**Mensageria & Resiliência (RabbitMQ)**](docs/08.MESSAGING_AND_RESILIENCE.md): Direct Exchange, Prefetch QoS, Dead Letter Queue (`orders.dlq`) e simulação de falhas do ERP.
 * 09. 📑 [**Especificação da API REST (OpenAPI)**](docs/09.API_DOCUMENTATION.md): Endpoints Swagger, payloads de requisição/resposta, cabeçalhos de idempotência e catálogo de erros mapeados.
 * 10. 🧪 [**Testes Automatizados & Concorrência**](docs/10.TESTS_AND_BENCHMARKS.md): Estresse com 100 requisições simultâneas para 10 itens com Zero Overselling, testes de idempotência e cobertura Jest.
+* 11. 📝 [**Respostas Conceituais (Parte 1.A)**](docs/11.RESPOSTAS_CONCEITUAIS.md): Diagnóstico aprofundado dos 3 problemas, análise de causa raiz, trade-offs, visão 30-90 dias, estratégias de cache, observabilidade e resiliência.
 
 👉 **[Acessar Central de Documentação Técnica (docs/01.README.md)](docs/01.README.md)**
 
