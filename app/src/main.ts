@@ -9,13 +9,6 @@ import * as dotenv from 'dotenv'
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 dotenv.config()
 
-for (const key of Object.keys(process.env)) {
-  const val = process.env[key]
-  if (val && val.includes('${')) {
-    process.env[key] = val.replace(/\${(\w+)}/g, (_, k) => process.env[k] || '')
-  }
-}
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,

@@ -7,13 +7,9 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { v4 as uuidv4 } from 'uuid';
 
-const rawUrl =
+const connectionString =
   process.env.DATABASE_URL ||
-  `postgresql://${process.env.DB_USER || 'casecellshop'}:${process.env.DB_PASSWORD || 'casecellshop_pwd'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '5432'}/${process.env.DB_NAME || 'casecellshop_db'}?schema=public`;
-const connectionString = rawUrl.replace(
-  /\${(\w+)}/g,
-  (_, k) => process.env[k] || '',
-);
+  'postgresql://casecellshop:casecellshop_pwd@localhost:5432/casecellshop_db?schema=public';
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
