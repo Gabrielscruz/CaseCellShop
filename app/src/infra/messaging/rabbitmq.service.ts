@@ -136,10 +136,6 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async isHealthy(): Promise<boolean> {
-    return !!this.connection && !!this.channel
-  }
-
   private async disconnect(): Promise<void> {
     try {
       if (this.channel) {

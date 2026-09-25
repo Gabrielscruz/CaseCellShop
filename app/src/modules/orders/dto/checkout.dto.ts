@@ -15,8 +15,8 @@ export class CheckoutItemDto {
     description: 'UUID do produto a ser comprado',
     example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   })
-  @IsUUID('4', { message: 'O productId deve ser um UUID válido v4.' })
-  @IsNotEmpty({ message: 'O productId é obrigatório.' })
+  @IsUUID('4', { message: 'productId must be a valid UUID v4.' })
+  @IsNotEmpty({ message: 'productId is required.' })
   productId: string
 
   @ApiProperty({
@@ -24,8 +24,8 @@ export class CheckoutItemDto {
     example: 1,
     minimum: 1,
   })
-  @IsInt({ message: 'A quantidade deve ser um número inteiro.' })
-  @Min(1, { message: 'A quantidade mínima por item é 1.' })
+  @IsInt({ message: 'quantity must be an integer.' })
+  @Min(1, { message: 'quantity must be at least 1.' })
   quantity: number
 }
 
@@ -35,16 +35,16 @@ export class CheckoutDto {
       'Identificador único do cliente / usuário que realiza a compra',
     example: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
   })
-  @IsUUID('4', { message: 'O customerId deve ser um UUID válido v4.' })
-  @IsNotEmpty({ message: 'O customerId é obrigatório.' })
+  @IsUUID('4', { message: 'customerId must be a valid UUID v4.' })
+  @IsNotEmpty({ message: 'customerId is required.' })
   customerId: string
 
   @ApiProperty({
     description: 'Lista de produtos e quantidades do carrinho',
     type: [CheckoutItemDto],
   })
-  @IsArray({ message: 'Os itens devem ser enviados em formato de lista.' })
-  @ArrayMinSize(1, { message: 'O carrinho deve conter pelo menos 1 item.' })
+  @IsArray({ message: 'items must be an array.' })
+  @ArrayMinSize(1, { message: 'Cart must contain at least 1 item.' })
   @ValidateNested({ each: true })
   @Type(() => CheckoutItemDto)
   items: CheckoutItemDto[]
