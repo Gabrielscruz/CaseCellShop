@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common'
+import { ConflictError } from '../src/core/errors/conflict.error'
 import { OrdersService } from '../src/modules/orders/orders.service'
 import { IOrderRepository } from '../src/core/orders/order.repository.interface'
 import { IProductRepository } from '../src/core/products/product.repository.interface'
@@ -133,7 +133,7 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
         key,
         'corr-3',
       ),
-    ).rejects.toThrow(ConflictException)
+    ).rejects.toThrow(ConflictError)
 
     expect(stock).toBe(10)
   })

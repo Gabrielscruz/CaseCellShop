@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common'
+import { InvalidCursorError } from '../src/core/errors/bad-request.error'
 import { ProductsService } from '../src/modules/products/products.service'
 import {
   CursorPaginatedProducts,
@@ -103,10 +103,10 @@ describe('ProductsService (Clean Architecture & SOLID)', () => {
     })
   })
 
-  it('deve lançar BadRequestException se o cursor de paginação for inválido ou corrompido', async () => {
+  it('deve lançar InvalidCursorError se o cursor de paginação for inválido ou corrompido', async () => {
     await expect(
       service.findAll(1000, 'cursor-totalmente-invalido'),
-    ).rejects.toThrow(BadRequestException)
+    ).rejects.toThrow(InvalidCursorError)
 
     expect(mockCacheService.getOrSetWithFallback).not.toHaveBeenCalled()
   })

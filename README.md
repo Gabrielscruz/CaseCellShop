@@ -205,6 +205,13 @@ Disponíveis no endpoint:
 - `erp_errors_total{endpoint, status_code}`: Erros transitórios do ERP
 - `http_request_duration_seconds`: Histogramas p50/p95/p99
 
+### 4.3. Tratamento de Erros Desacoplado (Domain Errors ➔ Interceptor ➔ Exception Filter)
+
+A aplicação implementa o padrão arquitetural de desacoplamento entre regras de negócio e camada de transporte HTTP:
+- **Services Puros:** Os serviços de domínio lançam exclusivamente erros semânticos da aplicação (`InsufficientStockError`, `ProductNotFoundError`, `DuplicateTransactionError`), sem conhecer detalhes de HTTP (permitindo reuso por workers AMQP, filas ou gRPC).
+- **`ErrorHandlerInterceptor`:** Intercepta os erros de negócio e do banco (Prisma `P2002`, `P2025`, `P2003`) e os converte em exceções HTTP adequadas (`ConflictException`, `NotFoundException`, `BadRequestException`).
+- **`GlobalExceptionFilter`:** Padroniza a resposta JSON de erro com `correlationId`, `statusCode`, `path`, `timestamp` e emite logs estruturados (Warn para 4xx, Error com stack trace para 5xx).
+
 ---
 
 ## 5. Testes Automatizados (Garantia contra Overselling)

@@ -111,7 +111,7 @@ export class OrdersConsumer implements OnModuleInit {
     await delay(this.STATUS_TRANSITION_DELAY_MS)
 
     if (orderId.includes('fail-erp')) {
-      throw new Error('ERP Gateway: Falha de comunicação ou cartão recusado')
+      throw new Error('ERP Gateway: Communication failure or card declined')
     }
   }
 }

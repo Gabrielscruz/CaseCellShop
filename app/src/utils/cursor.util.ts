@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common'
+import { InvalidCursorError } from '../core/errors/bad-request.error'
 import { CursorData } from '../core/products/product.repository.interface'
 
 export function encodeCursor(createdAt: Date | string, id: string): string {
@@ -23,7 +23,7 @@ export function decodeCursor(cursor?: string): CursorData | undefined {
     if (raw.createdAt && raw.id && typeof raw.id === 'string') {
       const createdAtDate = new Date(raw.createdAt)
       if (isNaN(createdAtDate.getTime())) {
-        throw new Error('Data do cursor inválida')
+        throw new Error('Invalid cursor date')
       }
       return {
         createdAt: createdAtDate,
@@ -31,8 +31,8 @@ export function decodeCursor(cursor?: string): CursorData | undefined {
       }
     }
 
-    throw new Error('Campos obrigatórios do cursor ausentes')
+    throw new Error('Missing required cursor fields')
   } catch {
-    throw new BadRequestException('Cursor de paginação inválido ou corrompido.')
+    throw new InvalidCursorError()
   }
 }

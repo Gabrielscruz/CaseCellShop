@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common'
+import { ConflictError } from '../src/core/errors/conflict.error'
 import { OrdersService } from '../src/modules/orders/orders.service'
 import { IOrderRepository } from '../src/core/orders/order.repository.interface'
 import { IProductRepository } from '../src/core/products/product.repository.interface'
@@ -126,7 +126,7 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
         )
         .then((res) => ({ status: 'ACCEPTED', res }))
         .catch((err) => ({
-          status: err instanceof ConflictException ? 'REJECTED' : 'ERROR',
+          status: err instanceof ConflictError ? 'REJECTED' : 'ERROR',
           error: err.message,
         }))
 

@@ -3,6 +3,8 @@ import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { StructuredLoggerService } from './infra/observability/logger.service'
+import { ErrorHandlerInterceptor } from './common/interceptors/error-handler.interceptor'
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import * as path from 'path'
 import * as dotenv from 'dotenv'
 
@@ -16,6 +18,12 @@ async function bootstrap() {
 
   const logger = app.get(StructuredLoggerService)
   app.useLogger(logger)
+
+  // Interceptor para desacoplamento de erros (Domínio/Prisma -> HttpException)
+  app.useGlobalInterceptors(new ErrorHandlerInterceptor())
+
+  // Exception Filter global para padronização de respostas de erro e logs estruturados
+  app.useGlobalFilters(new GlobalExceptionFilter(logger))
 
   // Validação global com class-validator
   app.useGlobalPipes(

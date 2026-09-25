@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common'
+import { InvalidCursorError } from '../src/core/errors/bad-request.error'
 import { decodeCursor, encodeCursor } from '../src/utils/cursor.util'
 
 describe('CursorUtil', () => {
@@ -31,23 +31,23 @@ describe('CursorUtil', () => {
     expect(decodeCursor('')).toBeUndefined()
   })
 
-  it('deve lançar BadRequestException se o cursor for uma string corrompida', () => {
+  it('deve lançar InvalidCursorError se o cursor for uma string corrompida', () => {
     expect(() => decodeCursor('cursor-invalido-qualquer')).toThrow(
-      BadRequestException,
+      InvalidCursorError,
     )
   })
 
-  it('deve lançar BadRequestException se o JSON do cursor não contiver createdAt ou id', () => {
+  it('deve lançar InvalidCursorError se o JSON do cursor não contiver createdAt ou id', () => {
     const invalidPayload = Buffer.from(
       JSON.stringify({ algo: 'errado' }),
     ).toString('base64url')
-    expect(() => decodeCursor(invalidPayload)).toThrow(BadRequestException)
+    expect(() => decodeCursor(invalidPayload)).toThrow(InvalidCursorError)
   })
 
-  it('deve lançar BadRequestException se a data for inválida', () => {
+  it('deve lançar InvalidCursorError se a data for inválida', () => {
     const invalidDatePayload = Buffer.from(
       JSON.stringify({ createdAt: 'data-invalida', id: '123' }),
     ).toString('base64url')
-    expect(() => decodeCursor(invalidDatePayload)).toThrow(BadRequestException)
+    expect(() => decodeCursor(invalidDatePayload)).toThrow(InvalidCursorError)
   })
 })

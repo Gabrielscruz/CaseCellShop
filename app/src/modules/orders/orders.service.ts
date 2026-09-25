@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import * as crypto from 'crypto'
 import {
   IOrderRepository,
@@ -19,6 +14,17 @@ import { StructuredLoggerService } from '../../infra/observability/logger.servic
 import { MetricsService } from '../../infra/observability/metrics.service'
 import { CheckoutDto, CheckoutResponseDto } from './dto/checkout.dto'
 import { Order } from '../../core/orders/order.entity'
+import {
+  ConflictError,
+  DuplicateTransactionError,
+  InsufficientStockError,
+  TransactionInProgressError,
+} from '../../core/errors/conflict.error'
+import {
+  NotFoundError,
+  OrderNotFoundError,
+  ProductNotFoundError,
+} from '../../core/errors/not-found.error'
 
 @Injectable()
 export class OrdersService {
@@ -47,9 +53,7 @@ export class OrdersService {
         await this.cache.getIdempotencyResult<CheckoutResponseDto>(effectiveKey)
 
       if (existingResult === 'PROCESSING') {
-        throw new ConflictException(
-          'Transação já está em processamento. Por favor, aguarde alguns instantes.',
-        )
+        throw new TransactionInProgressError()
       }
 
       if (existingResult && typeof existingResult === 'object') {
@@ -60,7 +64,7 @@ export class OrdersService {
         return existingResult
       }
 
-      throw new ConflictException('Transação duplicada detectada.')
+      throw new DuplicateTransactionError()
     }
 
     try {
@@ -74,9 +78,7 @@ export class OrdersService {
       for (const item of dto.items) {
         const product = await this.productRepo.findById(item.productId)
         if (!product) {
-          throw new NotFoundException(
-            `Produto com ID "${item.productId}" não encontrado no catálogo.`,
-          )
+          throw new ProductNotFoundError(item.productId)
         }
         orderItems.push({
           productId: item.productId,
@@ -104,9 +106,7 @@ export class OrdersService {
           this.metrics.checkoutStockoutRejectedTotal.inc({
             product_id: item.productId,
           })
-          throw new ConflictException(
-            `Estoque insuficiente para o produto "${item.productId}". Transação cancelada.`,
-          )
+          throw new InsufficientStockError(item.productId)
         }
 
         deductedItems.push({
@@ -145,8 +145,8 @@ export class OrdersService {
       return response
     } catch (error) {
       if (
-        !(error instanceof ConflictException) &&
-        !(error instanceof NotFoundException)
+        !(error instanceof ConflictError) &&
+        !(error instanceof NotFoundError)
       ) {
         this.logger.error(
           `Erro inesperado durante o checkout: ${error.message}`,
@@ -161,7 +161,7 @@ export class OrdersService {
   async getOrderStatus(orderId: string): Promise<Order> {
     const order = await this.orderRepo.findById(orderId)
     if (!order) {
-      throw new NotFoundException(`Pedido com ID "${orderId}" não encontrado.`)
+      throw new OrderNotFoundError(orderId)
     }
     return order
   }

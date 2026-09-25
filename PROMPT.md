@@ -135,3 +135,15 @@ Para atender integralmente aos critérios de avaliação sem custos de nuvem:
 > 3. Crie arquivos de configuração declarativos em `infra/redis/redis.conf` e `infra/rabbitmq/rabbitmq.conf`.  
 > 4. No `docker-compose.yml`, orquestre o serviço `app` com `depends_on` condicional a `service_healthy` para PostgreSQL, Redis e RabbitMQ, executando um `entrypoint.sh` que sincroniza o schema do Prisma e realiza o seed automaticamente antes do boot da API."*  
 > **Revisão Humana:** Garantiu-se o isolamento dos contêineres, healthchecks ativos e zero atrito de setup na inicialização com `docker compose up --build`.
+
+---
+
+### Prompt 09: Tratamento de Erros Desacoplado, Interceptors e Exception Filters
+> **Contexto:** Desacoplar a regra de negócio do protocolo HTTP, tratando erros de domínio e do Prisma via Interceptors e padronizando logs e respostas via Exception Filter global.  
+> **Prompt:**  
+> *"Refatore o tratamento de erros do NestJS:  
+> 1. Crie erros de domínio puros (`InsufficientStockError`, `ProductNotFoundError`, `InvalidCursorError`, etc.) herdando de `AppError`.  
+> 2. Elimine qualquer import de `HttpException` (`ConflictException`, `NotFoundException`) dentro dos Services.  
+> 3. Crie um `ErrorHandlerInterceptor` para converter erros de domínio e do Prisma (`P2002`, `P2025`, `P2003`) em exceções HTTP adequadas.  
+> 4. Crie um `GlobalExceptionFilter` com logs estruturados (Pino) propagando `correlationId` e devolvendo payload padronizado com `statusCode`, `error`, `message`, `correlationId`, `timestamp` e `path`."*  
+> **Revisão Humana:** A arquitetura desacoplou os Services de protocolos de transporte e garantiu logs detalhados e rastreáveis para incidentes operacionais.
