@@ -18,6 +18,7 @@ COPY tsconfig*.json nest-cli.json prisma.config.ts ./
 COPY prisma ./prisma
 
 # Gera o cliente Prisma tipado
+ENV DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
 RUN npx prisma generate
 
 # Copia o código-fonte da aplicação

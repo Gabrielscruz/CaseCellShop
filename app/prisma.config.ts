@@ -1,6 +1,6 @@
 import * as path from 'path'
 import * as dotenv from 'dotenv'
-import { defineConfig, env } from 'prisma/config'
+import { defineConfig } from 'prisma/config'
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') })
 dotenv.config()
@@ -12,7 +12,9 @@ export default defineConfig({
     seed: 'ts-node prisma/seed.ts',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    url:
+      process.env.DATABASE_URL ||
+      'postgresql://casecellshop:casecellshop_pwd@localhost:5432/casecellshop_db?schema=public',
   },
 })
 

@@ -41,8 +41,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       return this.channel
     }
 
-    const url =
-      process.env.RABBITMQ_URL
+    const url = process.env.RABBITMQ_URL
 
     try {
       this.connection = await connect(url)

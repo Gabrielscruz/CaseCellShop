@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-3000}:3000"
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
@@ -40,6 +42,8 @@ services:
       POSTGRES_DB: ${DB_NAME:-casecellshop_db}
     ports:
       - "${DB_PORT:-5432}:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,6 +60,8 @@ services:
       - .env
     ports:
       - "${REDIS_PORT:-6379}:6379"
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -75,6 +81,9 @@ services:
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    expose:
+      - "5672"
+      - "15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-casecellshop}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-casecellshop_pwd}

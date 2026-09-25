@@ -11,7 +11,7 @@ export class PrismaService
   private readonly pool: Pool
 
   constructor() {
-    const connectionString = process.env.DATABASE_URL 
+    const connectionString = process.env.DATABASE_URL
     const pool = new Pool({ connectionString })
     const adapter = new PrismaPg(pool)
 
