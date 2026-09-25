@@ -20,6 +20,7 @@
     "prisma:push": "prisma db push",
     "prisma:seed": "prisma db seed",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix"
   },

@@ -1,161 +1,75 @@
 # CaseCellShop — Backend Senior Challenge 🚀
 
-Bem-vindo ao repositório da mini-tarefa prática do processo seletivo para Engenheiro(a) Backend Sênior da **CaseCellShop**.
-
-Este projeto implementa uma arquitetura resiliente, de alta performance e desacoplada baseada em **Monólito Modular** com **Clean Architecture** e **DDD**, desenvolvida em **NestJS** e **TypeScript**. O objetivo é solucionar os 3 gargalos críticos da loja virtual:
-1. **Performance da Vitrine:** Resolvido com Cache Distribuído (Redis) via Cache-Aside, TTL calibrado e prevenção contra Cache Stampede (Lock Distribuído).
-2. **Consistência de Estoque (Zero Overselling):** Resolvido com *Atomic Conditional Update* no PostgreSQL (`UPDATE stock SET qty = qty - $1 WHERE product_id = $2 AND qty >= $1`) e controle de Idempotência no Redis.
-3. **Resiliência do Checkout:** Resolvido com Checkout Assíncrono (HTTP 202 Accepted), mensageria via BullMQ (Redis) com retentativas exponenciais, jitter, Dead Letter Queue (DLQ) e Padrão SAGA com Transações Compensatórias.
-
----
-
-## 1. Arquitetura e Organização de Pastas
-
-A aplicação segue a divisão em camadas isoladas por **Inversão de Dependência (DIP)**:
-
-```text
-├── Dockerfile                    # 🐳 Multi-stage build otimizado (Builder + Runner enxuto)
-├── docker-compose.yml            # 🚢 Orquestração de App, PostgreSQL 16, Redis 7 e RabbitMQ 3
-├── infra/                        # 🛠️ Configurações declarativas de infraestrutura
-│   ├── app/
-│   │   └── entrypoint.sh         # Script de inicialização (migrations + seed automático + boot)
-│   ├── redis/
-│   │   └── redis.conf            # Configuração otimizada (AOF, maxmemory-policy LRU)
-│   └── rabbitmq/
-│       └── rabbitmq.conf         # Topologia, timeouts e limites de recursos AMQP
-├── prisma/
-│   ├── schema.prisma             # 📐 Modelos e Mapeamento de Dados Prisma com UUID
-│   └── seed.ts                   # 🌱 Seed determinístico de 10.000 produtos e estoque
-├── src/
-│   ├── core/                     # 🏛️ Domínio Puro (Entidades e Interfaces/Ports)
-│   │   ├── products/
-│   │   │   ├── product.entity.ts
-│   │   │   └── product.repository.interface.ts
-│   │   └── orders/
-│   │       ├── order.entity.ts
-│   │       └── order.repository.interface.ts
-│   ├── infra/                    # ⚙️ Infraestrutura Externa e Adapters
-│   │   ├── database/             # Prisma ORM (Driver Adapter pg + atomic updates)
-│   │   ├── cache/                # Redis (Cache-Aside + Lock contra Cache Stampede)
-│   │   ├── messaging/            # Mensageria RabbitMQ (Direct Exchange, DLQ e Consumer)
-│   │   └── observability/        # Telemetria (Pino JSON, Prometheus metrics e Tracing)
-│   └── modules/                  # 📦 Casos de Uso e Controllers NestJS
-│       ├── products/             # GET /products (Cache-Aside com x-cache-status)
-│       └── orders/               # POST /checkout (202 Accepted) e GET /orders/:id/status
-├── app.module.ts
-└── main.ts
-```
+## 📖 Resumo do Projeto
+O **CaseCellShop** é um backend resiliente e escalável desenvolvido em **NestJS**, **TypeScript** e **Prisma ORM**, projetado para resolver os três gargalos críticos de um e-commerce sob alto tráfego:
+1. **Performance da Vitrine:** Catálogo paginado com **Cache-Aside no Redis**, Fallback Gracioso de 24h e trava distribuída contra **Cache Stampede**.
+2. **Consistência de Estoque (Zero Overselling):** Baixa atômica condicional no PostgreSQL com transações ACID e controle rigoroso de **Idempotência no Redis**.
+3. **Resiliência no Checkout:** Fluxo assíncrono (**HTTP 202 Accepted**) com mensageria via **RabbitMQ**, Dead Letter Queue (DLQ) e **Padrão SAGA** com transações compensatórias em caso de falha no faturamento.
 
 ---
 
-## 2. Como Executar o Projeto
+## 🚀 Como Iniciar
 
-### Pré-requisitos
-- **Docker e Docker Compose** instalados (v20+ / Compose v2+)
-
----
-
-### Opção 1: Execução Completa via Docker Compose (Recomendada — 1 Comando) 🚀
-
-Para inicializar todo o ecossistema (PostgreSQL 16, Redis 7, RabbitMQ 3 e o backend NestJS com aplicação de schema e seed automático):
-
+### 🏭 Produção (Docker Compose — 1 Comando)
+Para construir as imagens e subir todo o ambiente de produção em segundo plano:
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
+> O Docker inicializará PostgreSQL, Redis, RabbitMQ, Prometheus, Grafana e a aplicação NestJS com sincronização automática do schema e carga inicial (seed) de **10.000 produtos**.
 
-> **O que acontece automaticamente:**
-> 1. O contêiner de build compila o TypeScript e prepara os artefatos mínimos em uma imagem final leve baseada em Alpine.
-> 2. O contêiner `app` aguarda os healthchecks de PostgreSQL, Redis e RabbitMQ estarem `healthy`.
-> 3. O script `entrypoint.sh` sincroniza o schema (`npx prisma db push`), executa o seed de 10.000 produtos e sobe a aplicação.
-> 4. A API e a documentação interativa estarão disponíveis imediatamente em **`http://localhost:3000`**.
-
----
-
-### Opção 2: Execução em Desenvolvimento Local (Host)
-
-Caso prefira rodar o Node.js localmente na máquina host:
-
+### 💻 Desenvolvimento Local (Host)
+Para rodar a aplicação localmente com hot-reload apontando para os serviços em contêiner:
 ```bash
-# 1. Subir apenas os serviços de apoio
-docker compose up -d postgres redis rabbitmq
+# 1. Subir os serviços de infraestrutura
+docker compose up -d postgres redis rabbitmq prometheus grafana
 
 # 2. Instalar dependências e preparar o banco
+cd app
 npm install
 npx prisma generate
 npx prisma db push
 npm run prisma:seed
 
-# 3. Iniciar a API em modo desenvolvimento (com hot-reload)
+# 3. Iniciar a API em modo watch
 npm run start:dev
 ```
 
-A API estará disponível em `http://localhost:3000`.
+---
+
+## 🌐 URLs dos Serviços e Como Usar
+
+| Serviço | Ícone | Link de Acesso | Credenciais | Como Usar |
+| :--- | :---: | :--- | :--- | :--- |
+| **API Backend** | 🌐 | [http://localhost:3000](http://localhost:3000) | N/A | Endpoint base da aplicação para consumo HTTP REST. |
+| **Swagger UI** | 📑 | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) | N/A | Interface interativa OpenAPI 3.0 para testar todos os endpoints, parâmetros e schemas. |
+| **Grafana** | 📊 | [http://localhost:3001](http://localhost:3001) | `admin` / `admin` | Painéis em tempo real de QPS, latência p99/p90/p50, taxa de acerto do cache e filas. |
+| **Prometheus** | 📈 | [http://localhost:9090](http://localhost:9090) | N/A | Consulta de séries temporais e validação de scraping de métricas `/metrics`. |
+| **RabbitMQ** | 🐰 | [http://localhost:15672](http://localhost:15672) | `casecellshop` / `casecellshop_pwd` | Gestão visual de filas (`orders.process`, `orders.dlq`) e exchanges AMQP. |
+| **Prisma Studio** | 💎 | [http://localhost:5555](http://localhost:5555) | N/A | Interface visual para explorar, filtrar e auditar tabelas do PostgreSQL em tempo real (`cd app && npx prisma studio`). |
 
 ---
 
-## 3. Rotas da API e Documentação Interativa (OpenAPI / Swagger)
+### 📘 Como Usar a API e Validar o Cache Redis
 
-A especificação interativa OpenAPI 3.0 (Swagger) fica disponível em:  
-👉 **`http://localhost:3000/api/docs`**
-
-### 3.1. `GET /products`
-Retorna o catálogo de capinhas com **Cursor-Based Pagination** (eliminação completa de OFFSET para escala $O(1)$ sobre os 10.000 produtos) e **Cache-Aside (Redis)**.
-- **Ordenação:** `created_at DESC`, `id DESC` (determinística com índice composto `idx_products_created_at_id`).
-- **Cursor Opaque:** Serializado em Base64 a partir de `{ createdAt, id }`.
-- **Chave de Cache no Redis:** `catalog:cursor:${cursor || 'first'}:limit:${limit}` com TTL de 30s.
-- **Prevenção de Cache Stampede:** Lock distribuído atômico no Redis (`SET lock:catalog:cursor:... NX PX 2000`).
-- **Cabeçalho de Resposta:** `x-cache-status: HIT | MISS`.
-
-* **1ª Página (sem cursor):**
-  ```bash
-  curl -i -X GET "http://localhost:3000/products?limit=10" \
-    -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000"
-  ```
-  *Exemplo de Resposta:*
-  ```json
-  {
-    "items": [...],
-    "nextCursor": "eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIxOjQxOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9",
-    "hasMore": true,
-    "limit": 10
-  }
-  ```
-
-* **Próxima Página (usando o nextCursor retornado):**
-  ```bash
-  curl -i -X GET "http://localhost:3000/products?limit=10&cursor=eyJjcmVhdGVkQXQiOiIyMDI2LTA5LTIyVDIxOjQxOjAwLjAwMFoiLCJpZCI6ImEwZWViYzk5LTljMGItNGVmOC1iYjZkLTZiYjliZDM4MGExMSJ9" \
-    -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000"
-  ```
-
-### 3.2. `GET /health`
-Verifica ativamente a integridade e prontidão da aplicação, checando a conectividade real do PostgreSQL (via Prisma) e do Redis.
+#### 1. Listagem de Catálogo (Vitrine com Cache Redis)
+Execute a chamada no catálogo. A 1ª requisição busca no Postgres e grava no Redis (**MISS**). As chamadas subsequentes respondem diretamente da memória (**HIT** com latência < 5ms):
 ```bash
-curl -i -X GET "http://localhost:3000/health"
-```
-*Exemplo de Resposta (HTTP 200 OK):*
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-09-22T22:28:00.000Z",
-  "uptimeSeconds": 42.5,
-  "services": {
-    "database": "up",
-    "redis": "up"
-  }
-}
-```
+# 1ª Chamada (MISS - Popula o Cache)
+curl -i http://localhost:3000/products?limit=10
 
-### 3.2. `POST /checkout`
-Inicia a compra de forma assíncrona com resposta imediata **HTTP 202 Accepted**.
-- **Baixa Atômica Condicional:** Evita overselling diretamente no banco.
-- **Idempotência Obrigatória:** Exige cabeçalho `Idempotency-Key` para tolerar perda de rede e duplo clique sem duplicar débito de estoque.
+# 2ª Chamada em diante (HIT - Resposta ultra-rápida do Redis)
+curl -i http://localhost:3000/products?limit=10
+```
+*Observe o cabeçalho retornado na resposta:* `x-cache-status: HIT` ou `x-cache-status: MISS`.
 
+#### 2. Checkout Assíncrono com Idempotência
+Inicia um pedido de compra retornando `HTTP 202 Accepted`. Chaves repetidas retornam a mesma resposta sem reprocessar:
 ```bash
-curl -i -X POST "http://localhost:3000/checkout" \
+curl -X POST http://localhost:3000/checkout \
   -H "Content-Type: application/json" \
-  -H "Idempotency-Key: a1b2c3d4-e5f6-7890-abcd-1234567890ab" \
-  -H "x-correlation-id: 550e8400-e29b-41d4-a716-446655440000" \
+  -H "x-idempotency-key: compra-teste-001" \
   -d '{
+    "customerId": "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33",
     "items": [
       {
         "productId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -164,141 +78,112 @@ curl -i -X POST "http://localhost:3000/checkout" \
     ]
   }'
 ```
-**Resposta (HTTP 202 Accepted):**
-```json
-{
-  "orderId": "7f39b61d-61a0-4355-a0bc-9e58ccff5dfb",
-  "status": "ACCEPTED"
-}
-```
 
-### 3.3. `GET /orders/:orderId/status`
-Consulta o ciclo de vida do pedido: `ACCEPTED` ➔ `PROCESSING` ➔ `BILLED` (ou `FAILED`).
-
+#### 3. Acompanhamento do Pedido
+Permite monitorar a evolução do pedido pela esteira assíncrona:
 ```bash
-curl -i -X GET "http://localhost:3000/orders/7f39b61d-61a0-4355-a0bc-9e58ccff5dfb/status"
+curl http://localhost:3000/orders/{orderId}/status
 ```
+
+#### 4. Interface Interativa Swagger UI
+Acesse **[http://localhost:3000/api/docs](http://localhost:3000/api/docs)** para testar todos os endpoints interativamente pelo navegador:
+
+![Swagger UI](docs/images/swagger-ui-live.png)
 
 ---
 
-## 4. Observabilidade e Métricas
+### 📊 Observabilidade no Grafana
 
-### 4.1. Logs Estruturados em JSON (Pino)
-Todos os logs registram campos essenciais e propagam o `correlation_id` de ponta a ponta:
-```json
-{
-  "level": "info",
-  "time": "2026-09-22T01:09:47.657Z",
-  "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
-  "order_id": "ord-7f39b61d-61a0-4355-a0bc-9e58ccff5dfb",
-  "msg": "Pedido ord-7f39b61d... processado e faturado com sucesso pelo worker."
-}
-```
+Acesse **`http://localhost:3001`** (login `admin` / senha `admin`). No menu **Dashboards**, entre na pasta **`CaseCellShop`** e abra o dashboard **"CaseCellShop - Observability Overview"** já provisionado de fábrica com:
+* **Prometheus QPS [rate-1m]:** Vazão de requisições por segundo por rota.
+* **HTTP Latency [p99 / p90 / p50]:** Curva de latência por percentil.
+* **Cache Operations & Hit Ratio:** Quantidade de Hits vs Misses do Redis e porcentagem de acerto.
+* **Checkout Orders by Status:** Conversão de pedidos (`accepted`, `billed`, `failed`).
+* **Stockout Rejections:** Total de compras bloqueadas para evitar overselling.
+* **Async Queue & DLQ:** Vazão da fila RabbitMQ e mensagens com falha.
+* **Node.js Heap Memory Used:** Diagnóstico de memória do processo Node.js.
 
-### 4.2. Métricas Prometheus
-Disponíveis no endpoint:  
-👉 **`GET http://localhost:3000/metrics`**
-- `cache_requests_total{status="hit|miss"}`: Hit ratio da vitrine
-- `checkout_orders_total{status="accepted|rejected|failed"}`: Funil de pedidos
-- `checkout_stockout_rejected_total{product_id}`: Monitoramento de faltas de estoque
-- `queue_messages_pushed_total` e `queue_messages_dlq_total`: Monitoramento de filas e DLQ
-- `erp_errors_total{endpoint, status_code}`: Erros transitórios do ERP
-- `http_request_duration_seconds`: Histogramas p50/p95/p99
-
-### 4.3. Tratamento de Erros Desacoplado (Domain Errors ➔ Interceptor ➔ Exception Filter)
-
-A aplicação implementa o padrão arquitetural de desacoplamento entre regras de negócio e camada de transporte HTTP:
-- **Services Puros:** Os serviços de domínio lançam exclusivamente erros semânticos da aplicação (`InsufficientStockError`, `ProductNotFoundError`, `DuplicateTransactionError`), sem conhecer detalhes de HTTP (permitindo reuso por workers AMQP, filas ou gRPC).
-- **`ErrorHandlerInterceptor`:** Intercepta os erros de negócio e do banco (Prisma `P2002`, `P2025`, `P2003`) e os converte em exceções HTTP adequadas (`ConflictException`, `NotFoundException`, `BadRequestException`).
-- **`GlobalExceptionFilter`:** Padroniza a resposta JSON de erro com `correlationId`, `statusCode`, `path`, `timestamp` e emite logs estruturados (Warn para 4xx, Error com stack trace para 5xx).
+![Dashboard Grafana Live](docs/images/grafana-dashboard-live.png)
 
 ---
 
-## 5. Testes Automatizados (Garantia contra Overselling)
+### 🐰 Gestão de Mensageria no RabbitMQ
 
-O projeto conta com suíte de testes com Jest:
+Acesse **[http://localhost:15672](http://localhost:15672)** (login `casecellshop` / senha `casecellshop_pwd`):
+* Acompanhe as filas ativas **`orders.process`** e a Dead Letter Queue **`orders.dlq`**.
+* Verifique o consumidor NestJS conectado com política de controle de fluxo (*Prefetch 10*).
+
+![RabbitMQ Overview](docs/images/rabbitmq-overview-live.png)
+
+---
+
+### 💎 Explorador Visual do Banco de Dados (Prisma Studio)
+
+Caso queira inspecionar visualmente os dados gravados no PostgreSQL (**10.000 produtos** populados no seed, saldo de estoque em tempo real, pedidos e itens):
 
 ```bash
+# Na pasta app
+cd app
+npx prisma studio
+# ou com script npm:
+npm run prisma:studio
+```
+
+* **Link de Acesso:** [http://localhost:5555](http://localhost:5555)
+* **Funcionalidades:**
+  - Visualização interativa das tabelas `Product`, `Stock`, `Order` e `OrderItem`.
+  - Filtros rápidos por ID, preço, quantidade em estoque e status do pedido (`ACCEPTED`, `BILLED`, `FAILED`).
+  - Edição e auditoria manual sem necessidade de instalar clientes SQL externos (DBeaver, pgAdmin).
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+| Ícone | Tecnologia | Descrição e Finalidade no Projeto |
+| :---: | :--- | :--- |
+| <img src="https://raw.githubusercontent.com/nestjs/nest/master/resources/logo-small.svg" width="28"/> | **NestJS 10** | Framework Node.js corporativo estruturado com injeção de dependências e modularidade. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg" width="28"/> | **TypeScript 5** | Tipagem estática rigorosa para garantir consistência de domínio e contratos de API. |
+| <img src="https://raw.githubusercontent.com/prisma/presskit/main/Assets/Prisma-IndigoLogo.svg" width="28"/> | **Prisma ORM 7** | Camada de acesso a dados tipada com Driver Adapter nativo PostgreSQL e migrations declarativas. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original.svg" width="28"/> | **PostgreSQL 16** | Banco relacional com integridade ACID, baixa atômica de estoque e constraints `CHECK (qty >= 0)`. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original.svg" width="28"/> | **Redis 7** | Cache em memória de baixa latência, locks distribuídos anti-stampede e controle de idempotência. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/rabbitmq/rabbitmq-original.svg" width="28"/> | **RabbitMQ 3** | Message Broker com Direct Exchange durável, Prefetch QoS e Dead Letter Queue (DLQ). |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/prometheus/prometheus-original.svg" width="28"/> | **Prometheus** | Servidor TSDB de coleta de métricas (OpenMetrics) em intervalos de 5 segundos via `/metrics`. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/grafana/grafana-original.svg" width="28"/> | **Grafana 11** | Painéis visuais analíticos pré-provisionados como código para auditoria de SLOs e saúde do sistema. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg" width="28"/> | **Docker & Compose** | Empacotamento em contêineres multi-stage leves e orquestração unificada de toda a stack. |
+| <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/jest/jest-plain.svg" width="28"/> | **Jest** | Suíte de testes automatizados unitários, de integração e de concorrência com estresse de 100 threads. |
+
+---
+
+## 📚 Documentação Técnica Aprofundada
+
+A documentação detalhada foi separada em capítulos modulares e aprofundados na pasta [`docs/`](docs/):
+
+* 01. 📖 [**Central de Documentação & Guia Rápido**](docs/01.README.md): Índice mestre, portas ativas e prévias visuais.
+* 02. 🏛️ [**Arquitetura & Princípios SOLID**](docs/02.ARCHITECTURE.md): Clean Architecture, Monólito Modular, DIP com Tokens e divisão estrita de responsabilidades.
+* 03. 🧠 [**Padrões & Decisões Técnicas**](docs/03.PATTERNS_AND_DECISIONS.md): Padrão SAGA com Compensação, Idempotência no Redis, Paginação por Cursor Base64 $O(1)$, Baixa Atômica e Delay de 30s no Consumer.
+* 04. 📊 [**Diagramas do Sistema (Mermaid)**](docs/04.SYSTEM_DIAGRAMS.md): Topologia de microsserviços, diagramas de sequência da Vitrine com Cache-Aside e do Checkout Assíncrono com Máquina de Estados.
+* 05. 🗄️ [**Modelagem de Dados & ERD**](docs/05.DATABASE_DIAGRAMS.md): Diagrama Entidade-Relacionamento (ERD), dicionário de dados, constraints `CHECK (qty >= 0)` e índices B-tree.
+* 06. ⚡ [**Infraestrutura de Cache (Redis)**](docs/06.INFRASTRUCTURE_AND_CACHE.md): Cache-Aside com TTL (30s), Fallback Gracioso de 24h, Mutex Anti-Stampede e configurações do `redis.conf`.
+* 07. 📈 [**Observabilidade & Telemetria**](docs/07.OBSERVABILITY.md): Métricas Prometheus, Dashboards Grafana pré-provisionados, Logs Estruturados com Pino, Tracing com Correlation ID, SLIs, SLOs e Runbooks.
+* 08. 🐰 [**Mensageria & Resiliência (RabbitMQ)**](docs/08.MESSAGING_AND_RESILIENCE.md): Direct Exchange, Prefetch QoS, Dead Letter Queue (`orders.dlq`) e simulação de falhas do ERP.
+* 09. 📑 [**Especificação da API REST (OpenAPI)**](docs/09.API_DOCUMENTATION.md): Endpoints Swagger, payloads de requisição/resposta, cabeçalhos de idempotência e catálogo de erros mapeados.
+* 10. 🧪 [**Testes Automatizados & Concorrência**](docs/10.TESTS_AND_BENCHMARKS.md): Estresse com 100 requisições simultâneas para 10 itens com Zero Overselling, testes de idempotência e cobertura Jest.
+
+👉 **[Acessar Central de Documentação Técnica (docs/01.README.md)](docs/01.README.md)**
+
+---
+
+## 🧪 Testes Automatizados
+
+O projeto inclui suíte completa de testes automatizados com Jest:
+
+```bash
+# Executar todos os testes
+cd app
 npm test
 ```
 
-### Destaque: Teste de Concorrência Extrema (`test/concurrency.spec.ts`)
-- **Cenário:** Produto configurado com **10 unidades** de estoque inicial.
-- **Estresse:** Disparo simultâneo de **100 requisições concorrentes** via `Promise.all`.
-- **Resultado Comprovado:**
-  - Exatamente **10 requisições** retornam sucesso (`ACCEPTED`).
-  - Exatamente **90 requisições** retornam conflito por falta de estoque (`ConflictException` - HTTP 409).
-  - O saldo remanescente é rigorosamente **0 unidades** (Zero Overselling).
-
----
-
-## 6. Rastreabilidade Distribuída (Trace / Span Stub)
-
-Para manter a solução leve e executável localmente sem a necessidade de hospedar um coletor OpenTelemetry (Jaeger/Zipkin/Datadog Agent), a aplicação adota uma estratégia de **Tracing Distribuído via W3C TraceContext / Correlation ID** propagado de forma contextual contínua:
-
-1. **Camada HTTP (Ingress):** O `CorrelationIdMiddleware` captura ou gera um `x-correlation-id` (UUID v4) e o injeta no `AsyncLocalStorage`.
-2. **Camada de Cache (Redis):** Operações de lock e leitura utilizam chaves com logs correlacionados.
-3. **Persistência (PostgreSQL):** Pedidos e itens são associados à chave de idempotência e correlation context.
-4. **Mensageria (RabbitMQ):** O produtor (`publish`) injeta o `correlationId` no payload da mensagem e nos headers AMQP.
-5. **Worker em Segundo Plano (`OrdersConsumer`):** O consumidor extrai o `correlationId` da mensagem e o vincula a todos os logs de transição de estado (`ACCEPTED` ➔ `PROCESSING` ➔ `BILLED`), fechando o ciclo do span distribuído da requisição original até o faturamento.
-
----
-
----
-
-## 7. Observabilidade Completa: Prometheus & Grafana Provisionados
-
-O ecossistema conta com telemetria ativa integrada via **Prometheus** e **Grafana**, pré-configurados e provisionados via Docker Compose com inicialização de 1 comando:
-
-| Serviço | URL de Acesso | Credenciais | Descrição |
-| :--- | :--- | :--- | :--- |
-| **API Backend** | `http://localhost:3000` | N/A | Aplicação NestJS |
-| **Documentação OpenAPI** | `http://localhost:3000/api/docs` | N/A | Swagger UI com schemas |
-| **Métricas Prometheus** | `http://localhost:3000/metrics` | N/A | Scrape endpoint aberto em formato OpenMetrics |
-| **Prometheus Server** | `http://localhost:9090` | N/A | Servidor TSDB e Expression Browser de métricas |
-| **Grafana** | `http://localhost:3001` | `admin` / `admin` | Dashboards em tempo real |
-| **RabbitMQ Management** | `http://localhost:15672` | `casecellshop` / `casecellshop_pwd` | Gestão de Filas, Exchanges e DLQ |
-
-### 7.1. Dashboard Pré-Configurado no Grafana (`CaseCellShop - Observability Overview`)
-
-Ao acessar `http://localhost:3001`, o dashboard **CaseCellShop - Observability Overview** já estará carregado e atualizando a cada 5 segundos:
-
-* **Prometheus QPS [rate-1m] (Área/Throughput):** Volume de requisições por segundo por rota e método HTTP (`sum(rate(http_request_duration_seconds_count[1m])) by (route, method)`).
-* **HTTP Latency [p99 / p90 / p50] (Histogram Quantiles):** Tempo de resposta da API por percentil em segundos (`histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))`).
-* **Cache Hit Ratio (%) (Eficiência Redis):** Taxa percentual de acerto do cache (`sum(rate(cache_requests_total{status="hit"}[1m])) / sum(rate(cache_requests_total[1m])) * 100`).
-* **Checkout Orders by Status:** Funil de conversão de compras (`accepted`, `billed`, `failed`).
-* **Stockout Rejections (Overselling Prevention):** Contador e taxa de compras barradas por falta de estoque (`checkout_stockout_rejected_total`).
-* **Async Queue Messages & DLQ:** Taxa de publicações na fila vs mensagens encaminhadas para a Dead Letter Queue.
-* **Node.js Heap Memory Used:** Uso de memória do processo e métricas de runtime.
-
-### 7.2. Alertas Críticos (Monitors)
-
-#### Alerta 1: DLQ com mensagens acumuladas (Severidade: P1 - Crítico)
-* **Condição:** `sum(queue_messages_dlq_total) > 0` por mais de 2 minutos.
-* **Mensagem:** `[CRÍTICO] Pedidos não processados foram parar na DLQ (orders.dlq). Possível indisponibilidade ou inconsistência no processamento assíncrono.`
-
-#### Alerta 2: Taxa de rejeição por falta de estoque anormal (Severidade: P2 - Aviso)
-* **Condição:** `sum(rate(checkout_stockout_rejected_total[5m])) > 10` por 5 minutos.
-* **Mensagem:** `[AVISO] Pico de rejeição por esgotamento de estoque (Flash Sale detectado ou reposição necessária).`
-
-### 7.3. Runbook Operacional (Resposta a Incidentes)
-
-#### Runbook: Mensagens na Dead Letter Queue (`orders.dlq`)
-1. **Identificação:** Filtrar logs estruturados pelo Datadog com a tag `queue: "orders.dlq"` ou buscar mensagens no RabbitMQ Management (`http://localhost:15672`).
-2. **Diagnóstico:** Extrair o `correlation_id` e o `order_id` dos metadados da mensagem rejeitada.
-3. **Inspeção do Erro:** Verificar o campo `failureReason` na tabela `orders` do PostgreSQL ou no log de erro do `OrdersConsumer`.
-4. **Remediação:**
-   - Se foi falha de timeout/conectividade com ERP: acionar o comando de reprocessamento (shovel/re-enqueue) da DLQ para `orders.process`.
-   - Se o pedido foi cancelado definitivamente: o estorno atômico de estoque (`incrementStockAtomic`) é acionado automaticamente pela compensação da SAGA.
-
----
-
-## 8. Decisões Arquiteturais, Trade-offs e Limitações
-
-| Decisão / Abordagem | Alternativa Rejeitada | Justificativa e Trade-offs |
-| :--- | :--- | :--- |
-| **RabbitMQ com AMQP nativo** | Redis BullMQ ou Kafka | AMQP nativo fornece suporte robusto a Direct Exchanges duráveis, Prefetch QoS e Dead Letter Exchanges (DLQ) sem overhead de cluster Kafka. |
-| **Baixa Atômica Condicional no Postgres** | Lock Pessimista (`SELECT FOR UPDATE`) | `UPDATE stock SET quantity = quantity - $1 WHERE quantity >= $1` não bloqueia leitura de outros produtos e elimina deadlocks comuns em `SELECT FOR UPDATE` sob alta concorrência. |
-| **Paginação por Cursor Opaque (Base64)** | Paginação por Offset (`LIMIT x OFFSET y`) | Offset degrada para $O(N)$ em tabelas grandes e gera inconsistências com inserts/deletes concorrentes. Cursor tem custo $O(1)$ constante via índice composto `(created_at, id)`. |
-| **Idempotência no Redis + Unique DB** | Apenas checagem no banco | Chave no Redis com lock atômico responde retentativas em menos de 10ms sem onerar a pool de conexões do PostgreSQL. |
-| **Simplificações do Desafio** | E-commerce completo | Autenticação omitida, envio ao ERP simulado pelo worker com delay programado de 5s entre status, sem gateway financeiro real (foco estritamente na engenharia de backend e concorrência). |
+### Prova de Fogo contra Overselling (`test/concurrency.spec.ts`)
+- **Estoque inicial:** 10 unidades.
+- **Disparo simultâneo:** 100 requisições concorrentes disparadas no mesmo milissegundo.
+- **Resultado:** Exatamente 10 pedidos aprovados (`HTTP 202`), exatamente 90 pedidos rejeitados com conflito (`HTTP 409`) e saldo final rigorosamente **0**. Zero overselling.
