@@ -127,6 +127,7 @@ export class OrdersService {
         correlationId,
       })
 
+      this.metrics.queueMessagesPushedTotal.inc()
       this.metrics.checkoutOrdersTotal.inc({ status: 'accepted' })
 
       const response: CheckoutResponseDto = {

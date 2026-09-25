@@ -81,6 +81,7 @@ describe('Idempotência no Checkout (Tolerância a Duplo Clique e Retries)', () 
     const mockMetrics = {
       checkoutOrdersTotal: { inc: jest.fn() },
       checkoutStockoutRejectedTotal: { inc: jest.fn() },
+      queueMessagesPushedTotal: { inc: jest.fn() },
     } as any
 
     const mockLogger = {

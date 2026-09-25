@@ -101,6 +101,7 @@ export class OrdersConsumer implements OnModuleInit {
         error.message,
       )
       this.metrics.checkoutOrdersTotal.inc({ status: 'failed' })
+      this.metrics.queueMessagesDlqTotal.inc()
 
       // Propaga o erro para o RabbitMQ encaminhar para a DLQ
       throw error

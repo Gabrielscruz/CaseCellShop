@@ -87,6 +87,7 @@ describe('Teste de Concorrência e Blindagem contra Overselling (100 requisiçõ
     const mockMetrics = {
       checkoutOrdersTotal: { inc: jest.fn() },
       checkoutStockoutRejectedTotal: { inc: jest.fn() },
+      queueMessagesPushedTotal: { inc: jest.fn() },
     } as any
 
     const mockLogger = {

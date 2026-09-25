@@ -244,13 +244,32 @@ Para manter a solução leve e executável localmente sem a necessidade de hospe
 
 ---
 
-## 7. Observabilidade Datadog / Grafana: Dashboards, Alertas e Runbook
+---
 
-### 7.1. Proposta de Dashboard (Datadog / Grafana)
-* **Widget 1 (Time-series):** Taxa de Checkout e Funil de Pedidos (`sum by (status) (rate(checkout_orders_total[1m]))`).
-* **Widget 2 (Gauge/Single Value):** Cache Hit Ratio da Vitrine (`sum(rate(cache_requests_total{status="hit"}[5m])) / sum(rate(cache_requests_total[5m])) * 100`). Target: > 85%.
-* **Widget 3 (Bar/Count):** Mensagens na DLQ (`queue_messages_dlq_total`). Target: 0.
-* **Widget 4 (Heatmap/Percentiles):** Latência p95 e p99 de listagem de catálogo e checkout (`http_request_duration_seconds`).
+## 7. Observabilidade Completa: Prometheus & Grafana Provisionados
+
+O ecossistema conta com telemetria ativa integrada via **Prometheus** e **Grafana**, pré-configurados e provisionados via Docker Compose com inicialização de 1 comando:
+
+| Serviço | URL de Acesso | Credenciais | Descrição |
+| :--- | :--- | :--- | :--- |
+| **API Backend** | `http://localhost:3000` | N/A | Aplicação NestJS |
+| **Documentação OpenAPI** | `http://localhost:3000/api/docs` | N/A | Swagger UI com schemas |
+| **Métricas Prometheus** | `http://localhost:3000/metrics` | N/A | Scrape endpoint aberto em formato OpenMetrics |
+| **Prometheus Server** | `http://localhost:9090` | N/A | Servidor TSDB e Expression Browser de métricas |
+| **Grafana** | `http://localhost:3001` | `admin` / `admin` | Dashboards em tempo real |
+| **RabbitMQ Management** | `http://localhost:15672` | `casecellshop` / `casecellshop_pwd` | Gestão de Filas, Exchanges e DLQ |
+
+### 7.1. Dashboard Pré-Configurado no Grafana (`CaseCellShop - Observability Overview`)
+
+Ao acessar `http://localhost:3001`, o dashboard **CaseCellShop - Observability Overview** já estará carregado e atualizando a cada 5 segundos:
+
+* **Prometheus QPS [rate-1m] (Área/Throughput):** Volume de requisições por segundo por rota e método HTTP (`sum(rate(http_request_duration_seconds_count[1m])) by (route, method)`).
+* **HTTP Latency [p99 / p90 / p50] (Histogram Quantiles):** Tempo de resposta da API por percentil em segundos (`histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (le))`).
+* **Cache Hit Ratio (%) (Eficiência Redis):** Taxa percentual de acerto do cache (`sum(rate(cache_requests_total{status="hit"}[1m])) / sum(rate(cache_requests_total[1m])) * 100`).
+* **Checkout Orders by Status:** Funil de conversão de compras (`accepted`, `billed`, `failed`).
+* **Stockout Rejections (Overselling Prevention):** Contador e taxa de compras barradas por falta de estoque (`checkout_stockout_rejected_total`).
+* **Async Queue Messages & DLQ:** Taxa de publicações na fila vs mensagens encaminhadas para a Dead Letter Queue.
+* **Node.js Heap Memory Used:** Uso de memória do processo e métricas de runtime.
 
 ### 7.2. Alertas Críticos (Monitors)
 

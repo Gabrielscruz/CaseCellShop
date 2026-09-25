@@ -6,6 +6,7 @@ import { MessagingModule } from './infra/messaging/messaging.module'
 import { ProductsModule } from './modules/products/products.module'
 import { OrdersModule } from './modules/orders/orders.module'
 import { CorrelationIdMiddleware } from './infra/observability/correlation-id.middleware'
+import { MetricsMiddleware } from './infra/observability/metrics.middleware'
 
 @Module({
   imports: [
@@ -19,6 +20,6 @@ import { CorrelationIdMiddleware } from './infra/observability/correlation-id.mi
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*')
+    consumer.apply(CorrelationIdMiddleware, MetricsMiddleware).forRoutes('*')
   }
 }

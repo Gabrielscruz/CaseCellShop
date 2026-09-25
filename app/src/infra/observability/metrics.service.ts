@@ -88,6 +88,15 @@ export class MetricsService {
       help: 'Volume atual de mensagens em espera na fila',
       registers: [this.registry],
     })
+
+    // Inicializa rótulos com 0 para que as séries temporais existam imediatamente no Prometheus
+    this.cacheRequestsTotal.labels({ status: 'hit' }).inc(0)
+    this.cacheRequestsTotal.labels({ status: 'miss' }).inc(0)
+    this.checkoutOrdersTotal.labels({ status: 'accepted' }).inc(0)
+    this.checkoutOrdersTotal.labels({ status: 'billed' }).inc(0)
+    this.checkoutOrdersTotal.labels({ status: 'failed' }).inc(0)
+    this.queueMessagesPushedTotal.inc(0)
+    this.queueMessagesDlqTotal.inc(0)
   }
 
   async getMetrics(): Promise<string> {
