@@ -20,12 +20,10 @@ export class ErrorHandlerInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       catchError((error) => {
-        // 1. Se já for uma HttpException (ex.: do ValidationPipe), repassa diretamente
         if (error instanceof HttpException) {
           return throwError(() => error)
         }
 
-        // 2. Erros de Domínio / Regras de Negócio
         if (error instanceof NotFoundError) {
           return throwError(() => new NotFoundException(error.message))
         }
@@ -38,7 +36,6 @@ export class ErrorHandlerInterceptor implements NestInterceptor {
           return throwError(() => new BadRequestException(error.message))
         }
 
-        // 3. Erros Conhecidos do Banco de Dados (Prisma ORM)
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
           switch (error.code) {
             case 'P2002': {
@@ -72,7 +69,6 @@ export class ErrorHandlerInterceptor implements NestInterceptor {
           }
         }
 
-        // 4. Erros não mapeados seguem para o Exception Filter tratar como 500
         return throwError(() => error)
       }),
     )

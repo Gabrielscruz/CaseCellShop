@@ -10,7 +10,6 @@ export class MetricsMiddleware implements NestMiddleware {
     const startTime = process.hrtime()
 
     res.on('finish', () => {
-      // Ignora endpoint do Prometheus para não poluir as métricas de latência da aplicação
       if (req.originalUrl === '/metrics' || req.baseUrl === '/metrics') {
         return
       }

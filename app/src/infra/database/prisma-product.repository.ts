@@ -81,11 +81,6 @@ export class PrismaProductRepository implements IProductRepository {
     }
   }
 
-  /**
-   * Baixa Atômica de Estoque via Prisma Client:
-   * Utiliza transação interativa ($transaction) e operador nativo { decrement: quantity } do Prisma.
-   * Totalmente baseado no Prisma Client, sem uso de raw queries.
-   */
   async decrementStockAtomic(
     productId: string,
     quantity: number,
@@ -114,10 +109,6 @@ export class PrismaProductRepository implements IProductRepository {
     }
   }
 
-  /**
-   * Transação Compensatória (Padrão SAGA) via Prisma Client:
-   * Restitui o estoque usando o operador nativo { increment: quantity } do Prisma.
-   */
   async incrementStockAtomic(
     productId: string,
     quantity: number,

@@ -5,7 +5,6 @@ import * as client from 'prom-client'
 export class MetricsService {
   private readonly registry: client.Registry
 
-  // Counters
   public readonly cacheRequestsTotal: client.Counter<'status'>
   public readonly checkoutOrdersTotal: client.Counter<'status'>
   public readonly checkoutStockoutRejectedTotal: client.Counter<'product_id'>
@@ -13,14 +12,12 @@ export class MetricsService {
   public readonly queueMessagesDlqTotal: client.Counter<string>
   public readonly erpErrorsTotal: client.Counter<'endpoint' | 'status_code'>
 
-  // Histograms
   public readonly httpRequestDurationSeconds: client.Histogram<
     'route' | 'method' | 'status_code'
   >
 
   public readonly erpCallDurationSeconds: client.Histogram<'status'>
 
-  // Gauges
   public readonly queueMessagesWaiting: client.Gauge<string>
 
   constructor() {
@@ -89,7 +86,6 @@ export class MetricsService {
       registers: [this.registry],
     })
 
-    // Inicializa rótulos com 0 para que as séries temporais existam imediatamente no Prometheus
     this.cacheRequestsTotal.labels({ status: 'hit' }).inc(0)
     this.cacheRequestsTotal.labels({ status: 'miss' }).inc(0)
     this.checkoutOrdersTotal.labels({ status: 'accepted' }).inc(0)

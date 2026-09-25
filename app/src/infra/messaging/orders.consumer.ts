@@ -23,7 +23,7 @@ export interface OrderQueueMessage {
 }
 @Injectable()
 export class OrdersConsumer implements OnModuleInit {
-  private readonly STATUS_TRANSITION_DELAY_MS = 30000 // 30 segundos para simular processamento realista entre transições de status
+  private readonly STATUS_TRANSITION_DELAY_MS = 30000
   constructor(
     private readonly rabbitmq: RabbitMQService,
     @Inject(ORDER_REPOSITORY)
@@ -79,7 +79,6 @@ export class OrdersConsumer implements OnModuleInit {
         { orderId, error: error.message },
       )
 
-      // Transação Compensatória (Saga): Estorna o estoque reservado
       for (const item of items) {
         try {
           await this.productRepo.incrementStockAtomic(
@@ -103,7 +102,6 @@ export class OrdersConsumer implements OnModuleInit {
       this.metrics.checkoutOrdersTotal.inc({ status: 'failed' })
       this.metrics.queueMessagesDlqTotal.inc()
 
-      // Propaga o erro para o RabbitMQ encaminhar para a DLQ
       throw error
     }
   }

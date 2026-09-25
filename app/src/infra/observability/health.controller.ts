@@ -49,7 +49,6 @@ export class HealthController {
     let isDatabaseUp = false
     let isRedisUp = false
 
-    // 1. Checagem do PostgreSQL via Prisma Client (sem raw queries)
     try {
       await this.prisma.product.findFirst({ select: { id: true } })
       isDatabaseUp = true
@@ -61,7 +60,6 @@ export class HealthController {
       )
     }
 
-    // 2. Checagem do Redis
     try {
       const pingResult = await this.redis.ping()
       isRedisUp = pingResult === 'PONG'

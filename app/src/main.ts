@@ -19,13 +19,8 @@ async function bootstrap() {
   const logger = app.get(StructuredLoggerService)
   app.useLogger(logger)
 
-  // Interceptor para desacoplamento de erros (Domínio/Prisma -> HttpException)
   app.useGlobalInterceptors(new ErrorHandlerInterceptor())
-
-  // Exception Filter global para padronização de respostas de erro e logs estruturados
   app.useGlobalFilters(new GlobalExceptionFilter(logger))
-
-  // Validação global com class-validator
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -34,7 +29,6 @@ async function bootstrap() {
     }),
   )
 
-  // Configuração da especificação OpenAPI 3.0 (Swagger)
   const swaggerConfig = new DocumentBuilder()
     .setTitle('CaseCellShop — Catálogo de Produtos e Vitrine')
     .setDescription(

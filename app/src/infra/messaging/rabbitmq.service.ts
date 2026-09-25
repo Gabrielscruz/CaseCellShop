@@ -145,7 +145,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         await this.connection.close()
       }
     } catch {
-      // Ignora erros no shutdown
+      // noop
     }
   }
 }

@@ -56,7 +56,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       path: request.url,
     }
 
-    // Observabilidade: Logs Estruturados diferenciando severidade
     if (status >= 500) {
       this.logger.error(
         `[HTTP 5xx] Erro interno durante requisição ${request.method} ${request.url}: ${exception instanceof Error ? exception.message : 'Desconhecido'}`,

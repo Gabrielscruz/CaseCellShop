@@ -1,5 +1,5 @@
 {
-  "name": "@casecellshop/backend",
+  "name": "casecellshop-backend",
   "version": "1.0.0",
   "description": "Backend da CaseCellShop - Desafio Técnico Sênior com Cache-Aside, Concorrência Atômica, Idempotência e Resiliência Assíncrona",
   "author": "Gabriel Cruz",
